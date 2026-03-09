@@ -1,0 +1,46 @@
+flowchart TB
+    subgraph Client["Клиент (Frontend)"]
+        Browser[Браузер]
+        React[React SPA]
+        Components[Компоненты: Dashboard, Sessions, Pomodoro, Statistics, AI Planner, Profile, Parent, Admin]
+        Browser --> React
+        React --> Components
+    end
+
+    subgraph Server["Серверная часть (Backend)"]
+        API[FastAPI]
+        Auth[auth]
+        Subjects[subjects]
+        Tasks[tasks]
+        Sessions[sessions]
+        Profile[profile]
+        Stats[stats]
+        AI[ai_planner]
+        Parent[parent]
+        Admin[admin]
+        API --> Auth
+        API --> Subjects
+        API --> Tasks
+        API --> Sessions
+        API --> Profile
+        API --> Stats
+        API --> AI
+        API --> Parent
+        API --> Admin
+    end
+
+    subgraph Data["База данных и хранилища"]
+        MySQL[(MySQL)]
+    end
+
+    subgraph External["Внешние API"]
+        OpenAI[OpenAI API]
+        Gemini[Google Gemini API]
+    end
+
+    Client -->|HTTPS / REST / JWT| Server
+    Server -->|SQL / PyMySQL| MySQL
+    AI -->|HTTP| OpenAI
+    AI -->|HTTP| Gemini
+
+    direction TB
