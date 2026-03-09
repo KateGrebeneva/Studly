@@ -1,0 +1,334 @@
+.achievements-page {
+  min-height: 100vh;
+  background: #f8f9fa;
+  display: flex;
+  font-family: 'Montserrat', sans-serif;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.6s ease;
+}
+
+.achievements-page.loaded {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.achievements-main {
+  flex: 1;
+  padding: 1.5rem 2rem;
+  background: #f8f9fa;
+  min-height: 100vh;
+}
+
+.achievements-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.achievement-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.stat-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, #7012CE, #9d4edd);
+  color: white;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-add-goal {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: #7012CE;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.btn-add-goal:hover {
+  background: #9d4edd;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(112, 18, 206, 0.3);
+}
+
+/* Goals Section */
+.goals-section {
+  margin-bottom: 3rem;
+}
+
+.goals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.goal-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid;
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.goal-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.goal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.goal-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  flex: 1;
+}
+
+.goal-type {
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.goal-type.daily {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.goal-type.weekly {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.goal-type.monthly {
+  background: #fce7f3;
+  color: #9f1239;
+}
+
+.goal-progress {
+  margin-bottom: 0.75rem;
+}
+
+.progress-info {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.progress-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.progress-separator {
+  color: #9ca3af;
+}
+
+.progress-target {
+  color: #6b7280;
+}
+
+.progress-bar-wrapper {
+  width: 100%;
+  height: 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.goal-completed {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #22c55e;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+/* Achievements Section */
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.achievement-card {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.achievement-card.unlocked {
+  border-color: #7012CE;
+  box-shadow: 0 4px 12px rgba(112, 18, 206, 0.1);
+}
+
+.achievement-card.locked {
+  opacity: 0.7;
+}
+
+.achievement-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.achievement-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.achievement-content {
+  flex: 1;
+}
+
+.achievement-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.achievement-description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.achievement-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.achievement-progress .progress-bar-wrapper {
+  flex: 1;
+  height: 6px;
+  background: #f3f4f6;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  min-width: 40px;
+}
+
+.achievement-date {
+  font-size: 0.75rem;
+  color: #7012CE;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+.achievement-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  color: #ffd700;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .achievements-main {
+    padding: 1.5rem;
+  }
+  
+  .achievements-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .goals-grid,
+  .achievements-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
