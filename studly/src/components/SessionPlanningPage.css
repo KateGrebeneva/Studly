@@ -527,6 +527,36 @@
   box-shadow: 0 2px 8px rgba(112, 18, 206, 0.15);
 }
 
+.session-card-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.session-card-actions .btn-start-session {
+  flex: 1;
+}
+
+.btn-delete-session {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.75rem 0.9rem;
+  border: 2px solid #fecaca;
+  border-radius: 10px;
+  background: #fff5f5;
+  color: #dc2626;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.btn-delete-session:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
 @media (max-width: 768px) {
   .dashboard-sidebar {
     width: 80px;

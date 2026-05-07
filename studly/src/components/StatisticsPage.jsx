@@ -33,8 +33,41 @@ const StatisticsPage = () => {
           totalHours: Math.floor(totalMinutes / 60),
           tasksCompleted: dashboard?.tasksCompleted || 0
         });
-        setWeeklyStats(weekly || []);
-        setSubjectStats((subjects || []).map(s => ({ name: s.name, time: s.total_minutes || 0, color: s.color })));
+        // Normalize weekly to last 7 days (even if API returns fewer rows).
+        // Important: use local date key to avoid UTC shift from toISOString().
+        const toLocalDateKey = (dt) => {
+          const d = new Date(dt);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
+
+        const weeklyMap = new Map(
+          (weekly || []).map((w) => [toLocalDateKey(w.date), { time: Number(w.time || 0), tasks: Number(w.tasks || 0), day: w.day }])
+        );
+
+        const today = new Date();
+        const dayNames = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+        const weeklyNormalized = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(today);
+          d.setDate(d.getDate() - i);
+          const dateStr = toLocalDateKey(d);
+          const w = weeklyMap.get(dateStr);
+          weeklyNormalized.push({
+            day: dayNames[d.getDay()],
+            time: w ? w.time : 0,
+            tasks: w ? w.tasks : 0,
+            date: dateStr,
+          });
+        }
+        setWeeklyStats(weeklyNormalized);
+        setSubjectStats(
+          (subjects || [])
+            .map((s) => ({ name: s.name, time: Number(s.total_minutes || 0), color: s.color }))
+            .sort((a, b) => b.time - a.time)
+        );
         setQuote(quoteData?.quote || null);
       } catch (e) {
         console.error(e);
@@ -46,6 +79,10 @@ const StatisticsPage = () => {
   const isActive = (path) => location.pathname === path;
   const maxTime = Math.max(1, ...weeklyStats.map(d => d.time));
   const maxSubjectTime = Math.max(1, ...subjectStats.map(s => s.time));
+  const mostStudiedSubject = subjectStats.length ? subjectStats[0].name : '—';
+  const mostProductiveDay = weeklyStats.length
+    ? weeklyStats.reduce((best, cur) => (cur.time > best.time ? cur : best), weeklyStats[0]).day
+    : '—';
 
   const getCalendarDays = () => {
     const today = new Date();
@@ -255,24 +292,30 @@ const StatisticsPage = () => {
                     <span>0h0m</span>
                   </div>
                   <div className="weekly-chart-bars">
-                    {weeklyStats.map((stat, index) => (
-                      <div key={index} className="chart-bar-item">
-                        <div 
-                          className="chart-bar"
-                          style={{ height: `${maxTime ? (stat.time / maxTime) * 100 : 0}%` }}
-                        >
-                          <div className="chart-bar-dot"></div>
+                    {weeklyStats.map((stat, index) => {
+                      const ratio = maxTime ? (stat.time / maxTime) : 0;
+                      const h = stat.time > 0 ? Math.max(8, ratio * 100) : 2;
+                      return (
+                        <div key={index} className="chart-bar-item">
+                          <div className="chart-bar-track">
+                            <div
+                              className="chart-bar"
+                              style={{ height: `${h}%` }}
+                            >
+                              <div className="chart-bar-dot"></div>
+                            </div>
+                          </div>
+                          <div className="chart-day-label">{stat.day}</div>
                         </div>
-                        <div className="chart-day-label">{stat.day}</div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
                 <div className="most-productive-card">
                   <Clock size={20} />
                   <div>
                     <p className="productive-label">Самый продуктивный день</p>
-                    <p className="productive-value">Среда</p>
+                    <p className="productive-value">{mostProductiveDay}</p>
                   </div>
                 </div>
               </div>
@@ -298,7 +341,7 @@ const StatisticsPage = () => {
                   <BookOpen size={20} />
                   <div>
                     <p className="studied-label">Наиболее изучаемый предмет</p>
-                    <p className="studied-value">Химия</p>
+                    <p className="studied-value">{mostStudiedSubject}</p>
                     <p className="studied-message">Скоро вам будет подвластно все!</p>
                   </div>
                   <img src="/vedma.png" alt="Ведьма" className="vedma-image" />

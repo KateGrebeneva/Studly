@@ -255,6 +255,14 @@
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
+  height: 100%;
+}
+
+.child-chart-track {
+  width: 100%;
+  height: 70px;
+  display: flex;
+  align-items: flex-end;
 }
 
 .child-chart-fill {

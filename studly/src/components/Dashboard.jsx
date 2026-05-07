@@ -4,7 +4,7 @@ import {
   BookOpen, Clock, Target, TrendingUp, Calendar, 
   Play, Plus, BarChart3, User, Search,
   ChevronRight, CheckCircle2, 
-  Flame, Home, Timer, ChevronLeft, Trophy, Sparkles
+  Flame, Home, Timer, ChevronLeft, Trophy, Sparkles, X
 } from 'lucide-react';
 import { statsAPI, sessionsAPI } from '../services/api';
 import './Dashboard.css';
@@ -16,6 +16,8 @@ const Dashboard = () => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [todayStats, setTodayStats] = useState({ timeStudied: 0, tasksCompleted: 0, sessionsCompleted: 0, streak: 0 });
   const [recentSessions, setRecentSessions] = useState([]);
+  const [allSessions, setAllSessions] = useState([]);
+  const [dayModal, setDayModal] = useState({ open: false, date: null, sessions: [] });
   const [subjects, setSubjects] = useState([]);
   const [studyChartData, setStudyChartData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +36,7 @@ const Dashboard = () => {
         statsAPI.getWeekly()
       ]);
       setTodayStats(dashboard);
+      setAllSessions(sessions || []);
       setRecentSessions((sessions || []).slice(0, 6));
       setSubjects((subjectsData || []).map((s, i) => ({
         id: s.id || i,
@@ -43,24 +46,27 @@ const Dashboard = () => {
         tasksCompleted: 0,
         tasksTotal: 0
       })));
-      const daysOrder = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-      const chartMap = {};
-      daysOrder.forEach((d, i) => { chartMap[i] = { day: d, time: 0, tasks: 0 }; });
-      (weekly || []).forEach(w => {
-        const idx = daysOrder.indexOf(w.day);
-        if (idx >= 0) chartMap[idx] = { day: w.day, time: w.time || 0, tasks: w.tasks || 0 };
-      });
+      const toLocalDateKey = (dt) => {
+        const d = new Date(dt);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const weeklyMap = new Map(
+        (weekly || []).map((w) => [toLocalDateKey(w.date), { time: Number(w.time || 0), tasks: Number(w.tasks || 0) }])
+      );
       const last7 = [];
       const today = new Date();
       for (let i = 6; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().slice(0, 10);
-        const w = (weekly || []).find(x => x.date === dateStr);
+        const dateStr = toLocalDateKey(d);
+        const w = weeklyMap.get(dateStr);
         const dayNames = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
         last7.push({ day: dayNames[d.getDay()], time: w ? w.time : 0, tasks: w ? w.tasks : 0 });
       }
-      setStudyChartData(last7.length ? last7 : daysOrder.map(d => ({ day: d, time: 0, tasks: 0 })));
+      setStudyChartData(last7);
     } catch (e) {
       console.error(e);
     } finally {
@@ -129,6 +135,26 @@ const Dashboard = () => {
 
   const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
+  const toLocalDateKey = (dt) => {
+    const d = new Date(dt);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const openDay = (year, month, dayNum) => {
+    if (!dayNum) return;
+    const d = new Date(year, month, dayNum);
+    const key = toLocalDateKey(d);
+    const sessionsForDay = (allSessions || []).filter((s) => {
+      const dt = s.scheduled_at || s.completed_at || s.created_at;
+      if (!dt) return false;
+      return toLocalDateKey(dt) === key;
+    });
+    setDayModal({ open: true, date: d, sessions: sessionsForDay });
+  };
 
 
   return (
@@ -442,11 +468,21 @@ const Dashboard = () => {
                 const isToday = day === today.getDate() && 
                                currentMonth.getMonth() === today.getMonth() && 
                                currentMonth.getFullYear() === today.getFullYear();
-                const hasStudy = day && (day % 7 === 0 || day % 3 === 0); // Моковые данные для дней с занятиями
+                const hasStudy = (() => {
+                  if (!day) return false;
+                  const d = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+                  const key = toLocalDateKey(d);
+                  return (allSessions || []).some((s) => {
+                    const dt = s.scheduled_at || s.completed_at || s.created_at;
+                    if (!dt) return false;
+                    return toLocalDateKey(dt) === key && (s.status === 'completed' || s.status === 'in_progress' || s.status === 'planned');
+                  });
+                })();
                 return (
                   <div 
                     key={idx} 
                     className={`calendar-day ${isToday ? 'today' : ''} ${hasStudy ? 'has-study' : ''} ${!day ? 'empty' : ''}`}
+                    onClick={() => openDay(currentMonth.getFullYear(), currentMonth.getMonth(), day)}
                   >
                     {day}
                   </div>
@@ -455,6 +491,61 @@ const Dashboard = () => {
             </div>
           </div>
         </section>
+
+        {dayModal.open && (
+          <div className="schedule-modal-overlay" onClick={() => setDayModal({ open: false, date: null, sessions: [] })}>
+            <div className="schedule-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="schedule-modal-header">
+                <h2>
+                  {dayModal.date
+                    ? `Сессии за ${dayModal.date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                    : 'Сессии'}
+                </h2>
+                <button className="btn-close-modal" onClick={() => setDayModal({ open: false, date: null, sessions: [] })}>
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="schedule-modal-content">
+                {dayModal.sessions && dayModal.sessions.length ? (
+                  <div className="day-sessions-list">
+                    {dayModal.sessions.map((s) => (
+                      <div key={s.id} className="day-session-row">
+                        <span
+                          className="session-subject-badge outline"
+                          style={{ color: s.subject_color || '#7012CE', borderColor: s.subject_color || '#7012CE' }}
+                        >
+                          {s.subject_name || 'Общее'}
+                        </span>
+                        <div className="day-session-main">
+                          <div className="day-session-goal">{s.goal}</div>
+                          <div className="day-session-meta">
+                            {(s.scheduled_at || s.completed_at || s.created_at) ? new Date(s.scheduled_at || s.completed_at || s.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : ''}
+                            {' • '}
+                            {s.duration_minutes || 25} мин
+                            {' • '}
+                            {s.status}
+                          </div>
+                        </div>
+                        {s.status !== 'completed' && (
+                          <button
+                            className="btn-start-session-item outline"
+                            onClick={() => navigate(`/pomodoro?session=${s.id}`)}
+                            style={{ borderColor: s.subject_color || '#7012CE', color: s.subject_color || '#7012CE' }}
+                          >
+                            <Play size={16} />
+                            Начать
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ color: '#6b7280' }}>На этот день сессий нет.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

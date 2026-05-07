@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Users, GraduationCap, UserPlus, CheckCircle2, Clock, Activity, User, LogOut, Search } from 'lucide-react';
+import { Shield, Users, GraduationCap, UserPlus, CheckCircle2, Clock, Activity, User, LogOut, Search, Pencil } from 'lucide-react';
 import { adminAPI, authAPI } from '../services/api';
+import ConfirmModal from './ConfirmModal';
 import './AdminPanelPage.css';
 
 const AdminPanelPage = () => {
@@ -12,6 +13,10 @@ const AdminPanelPage = () => {
   const [roleFilter, setRoleFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [editUser, setEditUser] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', email: '', role: 'student', theme: 'light' });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     loadData();
@@ -38,6 +43,37 @@ const AdminPanelPage = () => {
       setUsers(list || []);
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const openEdit = (u) => {
+    setSaveError('');
+    setEditUser(u);
+    setEditForm({
+      name: u?.name || '',
+      email: u?.email || '',
+      role: u?.role || 'student',
+      theme: u?.theme || 'light',
+    });
+  };
+
+  const handleSaveUser = async () => {
+    if (!editUser) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      const updated = await adminAPI.updateUser(editUser.id, {
+        name: editForm.name,
+        email: editForm.email,
+        role: editForm.role,
+        theme: editForm.theme,
+      });
+      setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
+      setEditUser(null);
+    } catch (e) {
+      setSaveError(e.message || 'Не удалось сохранить');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -180,6 +216,7 @@ const AdminPanelPage = () => {
                       <th>Email</th>
                       <th>Роль</th>
                       <th>Регистрация</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -190,6 +227,11 @@ const AdminPanelPage = () => {
                         <td>{u.email}</td>
                         <td><span className={`role-badge role-${u.role}`}>{roleLabels[u.role] || u.role}</span></td>
                         <td>{u.created_at ? new Date(u.created_at).toLocaleDateString('ru-RU') : '-'}</td>
+                        <td className="users-actions">
+                          <button className="btn-user-edit" onClick={() => openEdit(u)} title="Редактировать">
+                            <Pencil size={16} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -199,6 +241,47 @@ const AdminPanelPage = () => {
           </>
         )}
       </main>
+
+      <ConfirmModal
+        isOpen={!!editUser}
+        title="Редактировать пользователя"
+        message={
+          editUser ? (
+            <div className="admin-edit-form">
+              <div className="admin-edit-row">
+                <label>Имя</label>
+                <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+              </div>
+              <div className="admin-edit-row">
+                <label>Email</label>
+                <input value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+              </div>
+              <div className="admin-edit-row">
+                <label>Роль</label>
+                <select className="studly-select" value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}>
+                  <option value="student">Студент</option>
+                  <option value="parent">Родитель</option>
+                  <option value="teacher">Учитель</option>
+                  <option value="admin">Админ</option>
+                </select>
+              </div>
+              <div className="admin-edit-row">
+                <label>Тема</label>
+                <select className="studly-select" value={editForm.theme} onChange={(e) => setEditForm({ ...editForm, theme: e.target.value })}>
+                  <option value="light">Светлая</option>
+                  <option value="dark">Тёмная</option>
+                </select>
+              </div>
+              {saveError && <div className="admin-edit-error">{saveError}</div>}
+            </div>
+          ) : ''
+        }
+        confirmText={saving ? 'Сохраняю...' : 'Сохранить'}
+        cancelText="Отмена"
+        onConfirm={handleSaveUser}
+        onCancel={() => setEditUser(null)}
+        variant="warning"
+      />
     </div>
   );
 };

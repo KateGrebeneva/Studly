@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, User, GraduationCap, Users, Mail, Lock } from 'lucide-react';
 import { authAPI } from './services/api';
 import './RegisterPage.css';
 
@@ -90,9 +90,9 @@ const handleSubmit = async (e) => {
   };
 
   const roles = [
-    { value: 'adult',   label: 'Взрослый',     icon: 'u' },
-          { value: 'student', label: 'Школьник',     icon: 'GraduationCap' },
-          { value: 'parent',  label: 'Родитель / Учитель', icon: 'Users' },
+    { value: 'adult', label: 'Взрослый', icon: User, hint: 'Самостоятельный трекинг учебы' },
+    { value: 'student', label: 'Школьник', icon: GraduationCap, hint: 'Сессии, задачи и статистика' },
+    { value: 'parent', label: 'Родитель / Учитель', icon: Users, hint: 'Контроль и поддержка ученика' },
   ];
 
   return (
@@ -135,25 +135,31 @@ const handleSubmit = async (e) => {
               <form onSubmit={handleNext} className="register-form">
                 <div className="input-group">
                   <label>Введите email</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@example.com"
-                    className={errors.email ? 'error' : ''}
-                  />
+                  <div className={`input-with-icon ${errors.email ? 'error' : ''}`}>
+                    <Mail size={18} />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      className={errors.email ? 'error' : ''}
+                    />
+                  </div>
                   {errors.email && <span className="error-text">{errors.email}</span>}
                 </div>
 
                 <div className="input-group">
                   <label>Введите пароль</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className={errors.password ? 'error' : ''}
-                  />
+                  <div className={`input-with-icon ${errors.password ? 'error' : ''}`}>
+                    <Lock size={18} />
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className={errors.password ? 'error' : ''}
+                    />
+                  </div>
                   {errors.password && <span className="error-text">{errors.password}</span>}
                 </div>
 
@@ -180,10 +186,16 @@ const handleSubmit = async (e) => {
             className="hidden-radio"
           />
           <div className="role-item-content">
+            <div className="role-item-icon">
+              <r.icon size={20} />
+            </div>
             <div className="checkbox">
               {role === r.value && <Check size={20} />}
             </div>
-            <span className="role-item-label">{r.label}</span>
+            <div className="role-item-text">
+              <span className="role-item-label">{r.label}</span>
+              <span className="role-item-hint">{r.hint}</span>
+            </div>
           </div>
         </label>
       ))}
@@ -193,6 +205,9 @@ const handleSubmit = async (e) => {
     {errors.submit && <span className="error-text center">{errors.submit}</span>}
 
     <div className="step2-buttons">
+      <button type="button" className="btn-back" onClick={handleBack}>
+        Назад
+      </button>
       <button type="submit" className="btn-register" disabled={isLoading}>
         {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
       </button>

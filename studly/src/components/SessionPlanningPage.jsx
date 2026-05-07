@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Plus, Clock, Target, BookOpen, X, Home, Calendar, TrendingUp, User, Sparkles, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Play } from 'lucide-react';
+import { Plus, Clock, Target, BookOpen, X, Home, Calendar, TrendingUp, User, Sparkles, ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, Play, Trash2 } from 'lucide-react';
 import { sessionsAPI, subjectsAPI } from '../services/api';
+import ConfirmModal from './ConfirmModal';
 import './SessionPlanningPage.css';
 
 const SessionPlanningPage = () => {
@@ -27,6 +28,7 @@ const SessionPlanningPage = () => {
   const [sessions, setSessions] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteSessionModal, setDeleteSessionModal] = useState({ open: false, session: null });
   const presetIntervals = [
     { work: 25, short: 5, long: 15, count: 4, label: 'Классический (25/5)' },
     { work: 30, short: 10, long: 20, count: 4, label: 'Удлиненный (30/10)' },
@@ -89,6 +91,22 @@ const SessionPlanningPage = () => {
 
   const handleStartSession = (sessionId) => {
     navigate(`/pomodoro?session=${sessionId}`);
+  };
+
+  const handleDeleteSessionClick = (session) => {
+    setDeleteSessionModal({ open: true, session });
+  };
+
+  const handleDeleteSessionConfirm = async () => {
+    if (!deleteSessionModal.session) return;
+    try {
+      await sessionsAPI.delete(deleteSessionModal.session.id);
+      setSessions((prev) => prev.filter((s) => s.id !== deleteSessionModal.session.id));
+      showNotification('Сессия удалена', 'success');
+      setDeleteSessionModal({ open: false, session: null });
+    } catch (err) {
+      showNotification(err.message || 'Ошибка удаления сессии', 'error');
+    }
   };
 
   const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
@@ -409,16 +427,26 @@ const SessionPlanningPage = () => {
                       {session.scheduled_at ? new Date(session.scheduled_at).toLocaleString('ru-RU') : (session.created_at ? new Date(session.created_at).toLocaleDateString('ru-RU') : '')}
                     </span>
                   </div>
-                  {session.status !== 'completed' && (
+                  <div className="session-card-actions">
+                    {session.status !== 'completed' && (
+                      <button
+                        className="btn-start-session outline"
+                        onClick={() => handleStartSession(session.id)}
+                        style={{ borderColor: session.subject_color || '#7012CE', color: session.subject_color || '#7012CE' }}
+                      >
+                        <Play size={16} />
+                        Начать сессию
+                      </button>
+                    )}
                     <button
-                      className="btn-start-session outline"
-                      onClick={() => handleStartSession(session.id)}
-                      style={{ borderColor: session.subject_color || '#7012CE', color: session.subject_color || '#7012CE' }}
+                      className="btn-delete-session"
+                      onClick={() => handleDeleteSessionClick(session)}
+                      title="Удалить сессию"
                     >
-                      <Play size={16} />
-                      Начать сессию
+                      <Trash2 size={16} />
+                      Удалить
                     </button>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -522,6 +550,17 @@ const SessionPlanningPage = () => {
           </button>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={deleteSessionModal.open}
+        title="Удалить сессию"
+        message={deleteSessionModal.session ? `Удалить сессию "${deleteSessionModal.session.goal}"?` : ''}
+        confirmText="Удалить"
+        cancelText="Отмена"
+        onConfirm={handleDeleteSessionConfirm}
+        onCancel={() => setDeleteSessionModal({ open: false, session: null })}
+        variant="danger"
+      />
     </div>
   );
 };

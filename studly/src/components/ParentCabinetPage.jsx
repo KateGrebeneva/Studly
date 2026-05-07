@@ -86,14 +86,24 @@ const ParentCabinetPage = () => {
       setChildStats(stats);
       setChildSessions(sessions || []);
       setChildSubjects(subjects || []);
+      const toLocalDateKey = (dt) => {
+        const d = new Date(dt);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+      const weeklyMap = new Map(
+        (weekly || []).map((w) => [toLocalDateKey(w.date), { time: Number(w.time || 0), tasks: Number(w.tasks || 0) }])
+      );
       const daysOrder = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
       const today = new Date();
       const chartData = [];
       for (let i = 6; i >= 0; i--) {
         const d = new Date(today);
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().slice(0, 10);
-        const w = (weekly || []).find(x => x.date === dateStr);
+        const dateStr = toLocalDateKey(d);
+        const w = weeklyMap.get(dateStr);
         chartData.push({
           day: daysOrder[d.getDay()],
           time: w ? w.time : 0,
@@ -243,16 +253,25 @@ const ParentCabinetPage = () => {
                 <div className="child-chart-section">
                   <h3>Динамика учёбы за неделю</h3>
                   <div className="child-chart-bars">
-                    {childWeekly.map((d, i) => (
-                      <div key={i} className="child-chart-bar">
-                        <div
-                          className="child-chart-fill"
-                          style={{ height: `${Math.min(100, (d.time || 0) / 3)}%` }}
-                        />
-                        <span className="child-chart-day">{d.day}</span>
-                        <span className="child-chart-value">{d.time || 0} мин</span>
-                      </div>
-                    ))}
+                    {(() => {
+                      const max = Math.max(1, ...childWeekly.map((x) => Number(x.time || 0)));
+                      return childWeekly.map((d, i) => {
+                        const t = Number(d.time || 0);
+                        const h = t > 0 ? Math.max(6, (t / max) * 100) : 2;
+                        return (
+                          <div key={i} className="child-chart-bar">
+                            <div className="child-chart-track">
+                              <div
+                                className="child-chart-fill"
+                                style={{ height: `${h}%` }}
+                              />
+                            </div>
+                            <span className="child-chart-day">{d.day}</span>
+                            <span className="child-chart-value">{t} мин</span>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               )}

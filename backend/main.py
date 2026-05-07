@@ -5,7 +5,6 @@ from routers import auth, subjects, tasks, sessions, profile, achievements, goal
 
 app = FastAPI(title="Studly API", version="1.0.0")
 
-# CORS middleware — явно разрешаем Authorization для Bearer token
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -15,7 +14,6 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
-# Include routers
 app.include_router(auth.router)
 app.include_router(subjects.router)
 app.include_router(tasks.router)

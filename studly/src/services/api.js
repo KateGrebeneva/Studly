@@ -246,4 +246,6 @@ export const adminAPI = {
     return apiRequest(`/api/admin/users?${params}`);
   },
   getStats: async () => apiRequest('/api/admin/stats'),
+  updateUser: async (id, userData) =>
+    apiRequest(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(userData) }),
 };

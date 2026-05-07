@@ -23,6 +23,8 @@ const AIPlannerPage = () => {
   });
   const [focusZones, setFocusZones] = useState([]);
   const [applyingId, setApplyingId] = useState(null);
+  const [applyMessage, setApplyMessage] = useState('');
+  const [aiSuggestions, setAiSuggestions] = useState([]);
 
   useEffect(() => {
     setIsLoaded(true);
@@ -50,41 +52,6 @@ const AIPlannerPage = () => {
 
   const isActive = (path) => location.pathname === path;
 
-  const aiSuggestions = [
-    {
-      id: 1,
-      type: 'schedule',
-      title: 'Оптимальное расписание на завтра',
-      description: 'На основе твоей продуктивности AI предлагает:',
-      schedule: [
-        { time: '09:00', subject: 'Математика', duration: 25, priority: 'high' },
-        { time: '14:00', subject: 'Физика', duration: 50, priority: 'high' },
-        { time: '16:30', subject: 'История', duration: 25, priority: 'medium' }
-      ],
-      confidence: 92
-    },
-    {
-      id: 2,
-      type: 'goal',
-      title: 'Разбивка большой цели',
-      description: 'Цель "Подготовка к экзамену" разбита на шаги:',
-      steps: [
-        { step: 'Повторить теорию (2 часа)', completed: false },
-        { step: 'Решить практику (1.5 часа)', completed: false },
-        { step: 'Пробный тест (1 час)', completed: false }
-      ],
-      confidence: 88
-    },
-    {
-      id: 3,
-      type: 'reminder',
-      title: 'Умное напоминание',
-      description: 'AI заметил, что ты давно не занимался физикой',
-      action: 'Предлагаю сессию по физике завтра в 14:00',
-      confidence: 85
-    }
-  ];
-
   const defaultFocusZones = [
     { time: '09:00-11:00', score: 65, label: 'Средняя продуктивность' },
     { time: '11:00-13:00', score: 72, label: 'Хорошая продуктивность' },
@@ -106,6 +73,7 @@ const AIPlannerPage = () => {
         focusScore: plan.focusScore ?? 70,
         recommendations: plan.recommendations || []
       });
+      setAiSuggestions(Array.isArray(plan?.suggestions) ? plan.suggestions : []);
       setPlanGenerated(true);
     } catch (e) {
       console.error(e);
@@ -116,6 +84,7 @@ const AIPlannerPage = () => {
 
   const handleAcceptSuggestion = async (suggestion) => {
     setApplyingId(suggestion.id);
+    setApplyMessage('');
     try {
       const subjects = await subjectsAPI.getAll();
       const findSubjectId = (name) => {
@@ -128,12 +97,13 @@ const AIPlannerPage = () => {
       if (suggestion.type === 'schedule' && suggestion.schedule) {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
+        let createdCount = 0;
         for (const item of suggestion.schedule) {
           const [h, m] = (item.time || '09:00').split(':').map(Number);
           const scheduledAt = new Date(tomorrow);
           scheduledAt.setHours(h, m || 0, 0, 0);
           const intervals = Math.max(1, Math.round((item.duration || 25) / 25));
-          await sessionsAPI.create({
+          const created = await sessionsAPI.create({
             goal: item.subject || 'Сессия',
             subject_id: findSubjectId(item.subject),
             work_interval: 25,
@@ -142,32 +112,42 @@ const AIPlannerPage = () => {
             intervals_count: intervals,
             scheduled_at: scheduledAt.toISOString()
           });
+          if (created?.id) createdCount += 1;
         }
+        if (createdCount === 0) {
+          throw new Error('empty_result');
+        }
+        setApplyMessage(`Готово: создано сессий ${createdCount}.`);
         navigate('/sessions');
-      } else if (suggestion.type === 'reminder' && suggestion.action) {
-        const subjectName = suggestion.action.match(/(?:по\s+)?(\w+)/i)?.[1] || 'Общее';
-        const match = suggestion.action.match(/(\d{1,2}):(\d{2})/);
-        const [h, m] = match ? [parseInt(match[1]), parseInt(match[2])] : [14, 0];
+      } else if ((suggestion.type === 'reminder' || suggestion.type === 'goal') && suggestion.session) {
+        const subjectName = suggestion.session.subject || 'Общее';
+        const match = String(suggestion.session.time || '').match(/(\d{1,2}):(\d{2})/);
+        const [h, m] = match ? [parseInt(match[1], 10), parseInt(match[2], 10)] : [14, 0];
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(h, m, 0, 0);
-        await sessionsAPI.create({
-          goal: `Сессия: ${subjectName}`,
+        const duration = Number(suggestion.session.duration || 25);
+        const intervals = Math.max(1, Math.round(duration / 25));
+        const created = await sessionsAPI.create({
+          goal: suggestion.session.goal || `Сессия: ${subjectName}`,
           subject_id: findSubjectId(subjectName),
           work_interval: 25,
           short_break: 5,
           long_break: 15,
-          intervals_count: 4,
+          intervals_count: intervals,
           scheduled_at: tomorrow.toISOString()
         });
+        if (!created?.id) {
+          throw new Error('empty_result');
+        }
+        setApplyMessage('Готово: сессия создана.');
         navigate('/sessions');
-      } else if (suggestion.type === 'goal') {
-        navigate('/subjects');
       } else {
-        navigate('/sessions');
+        throw new Error('invalid_suggestion_payload');
       }
     } catch (e) {
       console.error(e);
+      setApplyMessage('Не удалось применить это предложение: в данных от сервера не хватает параметров.');
     } finally {
       setApplyingId(null);
     }
@@ -366,14 +346,14 @@ const AIPlannerPage = () => {
 
                   {suggestion.type === 'reminder' && (
                     <div className="reminder-content">
-                      <p>{suggestion.action}</p>
+                      <p>{suggestion.session?.goal || suggestion.description}</p>
                     </div>
                   )}
 
                   <button 
                     className="btn-accept-suggestion"
                     onClick={() => handleAcceptSuggestion(suggestion)}
-                    disabled={applyingId === suggestion.id}
+                    disabled={applyingId === suggestion.id || !suggestion?.type}
                   >
                     {applyingId === suggestion.id ? (
                       <>Применяю...</>
@@ -388,6 +368,16 @@ const AIPlannerPage = () => {
                 </div>
               ))}
             </div>
+            {aiSuggestions.length === 0 && (
+              <div style={{ marginTop: '0.75rem', color: '#6b7280' }}>
+                AI пока не вернул применимые предложения. Нажми "Создать план" ещё раз.
+              </div>
+            )}
+            {applyMessage && (
+              <div style={{ marginTop: '0.75rem', color: '#374151', fontWeight: 500 }}>
+                {applyMessage}
+              </div>
+            )}
           </section>
         )}
       </main>

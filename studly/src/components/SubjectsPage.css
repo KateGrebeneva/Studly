@@ -134,7 +134,7 @@
 
 .color-picker {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 1rem;
 }
 
@@ -150,9 +150,11 @@
 }
 
 .color-group-item .color-group-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.25;
+  word-break: break-word;
 }
 
 .color-group-item:hover {
@@ -187,9 +189,11 @@
   font-size: 0.875rem;
   color: #1f2937;
   font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.25;
+  word-break: break-word;
   min-width: 0;
 }
 
@@ -379,8 +383,27 @@
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 600;
-  margin-left: auto;
   flex-shrink: 0;
+}
+
+.btn-delete-task {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-delete-task:hover {
+  background: #ffe5e5;
+  color: #ff6b6b;
 }
 
 .task-checkbox {

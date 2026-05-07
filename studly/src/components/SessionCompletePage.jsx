@@ -47,7 +47,9 @@ const SessionCompletePage = () => {
     setChatMessages(prev => [...prev, { id: Date.now(), type: 'ai', text: 'Генерирую вопросы...' }]);
     try {
       const res = await aiAPI.generateTest(goal, sessionData.subject_name);
-      const q = res?.questions || '';
+      const q = Array.isArray(res?.questions)
+        ? (res.questionsText || res.questions.map((x, i) => `${i + 1}. ${x}`).join('\n'))
+        : (res?.questionsText || res?.questions || '');
       setChatMessages(prev => prev.slice(0, -1).concat([{ id: Date.now() + 1, type: 'ai', text: q || 'Не удалось сгенерировать.' }]));
     } catch {
       setChatMessages(prev => prev.slice(0, -1).concat([{ id: Date.now() + 1, type: 'ai', text: 'Ошибка. Напиши тему и нажми отправить.' }]));
@@ -66,7 +68,9 @@ const SessionCompletePage = () => {
 
     try {
       const res = await aiAPI.generateTest(inputMessage, sessionData.subject_name);
-      const q = res?.questions || '';
+      const q = Array.isArray(res?.questions)
+        ? (res.questionsText || res.questions.map((x, i) => `${i + 1}. ${x}`).join('\n'))
+        : (res?.questionsText || res?.questions || '');
       setChatMessages(prev => [...prev, { id: Date.now() + 1, type: 'ai', text: q || 'Попробуй уточнить тему.' }]);
     } catch {
       setChatMessages(prev => [...prev, { id: Date.now() + 1, type: 'ai', text: 'Ошибка. Попробуй ещё раз.' }]);

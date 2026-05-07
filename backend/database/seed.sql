@@ -5,6 +5,10 @@ USE studly_db;
 
 -- Тестовый пользователь: СНАЧАЛА запусти: python scripts/create_seed.py
 -- Он создаст user id=1 с паролем test123. Затем можно запустить этот seed для остальных данных.
+-- И также создаст user id=2: Илья Малинин (ilya@studly.com).
+
+-- На случай старых данных: синхронизируем email Ильи
+UPDATE users SET email = 'ilya@studly.com' WHERE id = 2;
 
 -- Предметы для user_id=1
 INSERT INTO subjects (id, user_id, name, color, category, time_studied_minutes) VALUES

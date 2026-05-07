@@ -371,6 +371,14 @@
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
+  height: 100%;
+}
+
+.chart-bar-track {
+  width: 100%;
+  height: 170px;
+  display: flex;
+  align-items: flex-end;
 }
 
 .chart-bar {
@@ -378,11 +386,8 @@
   background: linear-gradient(180deg, #7012CE 0%, #9d4edd 100%);
   border-radius: 8px 8px 0 0;
   position: relative;
-  min-height: 20px;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 0.5rem;
+  display: block;
+  transition: height 0.35s ease;
 }
 
 .chart-bar-dot {

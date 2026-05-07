@@ -38,6 +38,7 @@ const SubjectsPage = () => {
 
   const [filterColor, setFilterColor] = useState('all');
   const [deleteModal, setDeleteModal] = useState({ open: false, subject: null });
+  const [deleteTaskModal, setDeleteTaskModal] = useState({ open: false, subject: null, task: null });
 
   const fetchData = async () => {
     setLoading(true);
@@ -109,6 +110,24 @@ const SubjectsPage = () => {
         ...tasksBySubject,
         [subjectId]: tasks.map(t => t.id === taskId ? { ...t, is_completed: !t.is_completed } : t)
       });
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleDeleteTaskClick = (subject, task) => {
+    setDeleteTaskModal({ open: true, subject, task });
+  };
+
+  const handleDeleteTaskConfirm = async () => {
+    if (!deleteTaskModal.task || !deleteTaskModal.subject) return;
+    try {
+      await tasksAPI.delete(deleteTaskModal.task.id);
+      setTasksBySubject((prev) => ({
+        ...prev,
+        [deleteTaskModal.subject.id]: (prev[deleteTaskModal.subject.id] || []).filter((t) => t.id !== deleteTaskModal.task.id),
+      }));
+      setDeleteTaskModal({ open: false, subject: null, task: null });
     } catch (err) {
       setError(err.message);
     }
@@ -276,6 +295,13 @@ const SubjectsPage = () => {
                               {priority.label}
                             </span>
                           )}
+                          <button
+                            className="btn-delete-task"
+                            onClick={() => handleDeleteTaskClick(subject, task)}
+                            title="Удалить задачу"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       );
                     })
@@ -333,6 +359,17 @@ const SubjectsPage = () => {
         cancelText="Отмена"
         onConfirm={handleDeleteSubjectConfirm}
         onCancel={() => setDeleteModal({ open: false, subject: null })}
+        variant="danger"
+      />
+
+      <ConfirmModal
+        isOpen={deleteTaskModal.open}
+        title="Удалить задачу"
+        message={deleteTaskModal.task ? `Удалить задачу "${deleteTaskModal.task.title}"?` : ''}
+        confirmText="Удалить"
+        cancelText="Отмена"
+        onConfirm={handleDeleteTaskConfirm}
+        onCancel={() => setDeleteTaskModal({ open: false, subject: null, task: null })}
         variant="danger"
       />
     </div>

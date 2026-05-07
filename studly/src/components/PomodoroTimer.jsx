@@ -168,7 +168,9 @@ const PomodoroTimer = () => {
     setIsAIGenerating(true);
     try {
       const res = await aiAPI.generateTest(goal, sessionInfo.subject_name);
-      const questions = res?.questions || '';
+      const questions = Array.isArray(res?.questions)
+        ? (res.questionsText || res.questions.map((q, i) => `${i + 1}. ${q}`).join('\n'))
+        : (res?.questionsText || res?.questions || '');
       setAiMessages(prev => [...prev, {
         id: Date.now() + 1,
         type: 'ai',
@@ -200,7 +202,9 @@ const PomodoroTimer = () => {
 
     try {
       const res = await aiAPI.generateTest(aiInput, sessionInfo.subject_name);
-      const questions = res?.questions || '';
+      const questions = Array.isArray(res?.questions)
+        ? (res.questionsText || res.questions.map((q, i) => `${i + 1}. ${q}`).join('\n'))
+        : (res?.questionsText || res?.questions || '');
       setAiMessages(prev => [...prev, {
         id: Date.now() + 1,
         type: 'ai',
