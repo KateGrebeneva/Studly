@@ -95,15 +95,11 @@ Studly — это не просто ещё один to-do лист.
 git clone https://github.com/KateGrebeneva/Studly.git
 cd studly
 
-# 2. Backend
-cd backend
-python -m venv venv
-source venv/bin/activate    # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env        # заполните переменные!
-python main.py               # или uvicorn main:app --reload
+# 2. Запустить весь стек через Docker:
 
-# 3. Frontend (в другой вкладке терминала)
-cd ../studly
-npm install
-npm start
+docker compose up --build
+
+После запуска:
+
+Фронтенд: http://localhost:8000
+Документация backend: http://localhost:3306/docs
