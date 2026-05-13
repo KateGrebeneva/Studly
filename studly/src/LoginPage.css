@@ -1,0 +1,226 @@
+.login-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8f5ff 0%, #e8e0ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  font-family: 'Montserrat', sans-serif;
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+
+.login-page.loaded {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.login-container {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  max-width: 1000px;
+  width: 100%;
+  background: white;
+  border-radius: 32px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(112, 18, 206, 0.15);
+}
+
+.login-left {
+  background: linear-gradient(135deg, #7012CE 0%, #9d4edd 50%, #c19eff 100%);
+  padding: 4rem 3rem;
+  display: flex;
+  align-items: center;
+  border-radius: 32px 0 0 32px;
+}
+
+.login-left-img {
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto 2rem;
+  display: block;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.15));
+}
+
+.left-content h2 {
+  font-size: 2rem;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 0.75rem;
+}
+
+.left-content p {
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 1.05rem;
+}
+
+.login-right {
+  padding: 4rem 3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.form-wrapper {
+  width: 100%;
+  max-width: 360px;
+}
+
+.form-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.form-logo {
+  height: 48px;
+  margin-bottom: 1.5rem;
+}
+
+.form-header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 0.5rem;
+}
+
+.form-subtitle {
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.login-form .input-group {
+  margin-bottom: 1.25rem;
+}
+
+.login-form label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.login-form input {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border: 1.5px solid #e0d4ff;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: #faf8ff;
+}
+
+.login-form input:focus {
+  outline: none;
+  border-color: #7012CE;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(112, 18, 206, 0.1);
+}
+
+.error-text {
+  color: #e74c3c;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+
+.btn-login-submit {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, #7012CE 0%, #9d4edd 100%);
+  color: white;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(112, 18, 206, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-login-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(112, 18, 206, 0.4);
+}
+
+.btn-login-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: 2rem;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.form-footer a {
+  color: #7012CE;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.form-footer a:hover {
+  text-decoration: underline;
+}
+
+.back-button {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  z-index: 100;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: white;
+  border: none;
+  box-shadow: 0 8px 25px rgba(112, 18, 206, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #7012CE;
+}
+
+.back-button:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 30px rgba(112, 18, 206, 0.2);
+}
+
+@media (max-width: 900px) {
+  .login-container {
+    grid-template-columns: 1fr;
+    max-width: 480px;
+  }
+
+  .login-left {
+    border-radius: 32px 32px 0 0;
+    padding: 3rem 2rem;
+    text-align: center;
+  }
+
+  .login-left-img {
+    max-width: 200px;
+  }
+
+  .login-right {
+    border-radius: 0 0 32px 32px;
+  }
+}
+
+@media (max-width: 480px) {
+  .back-button {
+    top: 1rem;
+    left: 1rem;
+    width: 48px;
+    height: 48px;
+  }
+}
