@@ -1,70 +1,46 @@
-# Getting Started with Create React App
+# Studly — фронтенд
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+React 19 (Create React App), React Router 7, иконки lucide-react. Отдельных UI-библиотек нет,
+все стили свои: общие переменные и компоненты в `src/index.css`, у каждой страницы свой `.css`.
 
-## Available Scripts
+## Запуск
 
-In the project directory, you can run:
+```bash
+cd studly
+npm install
+npm start          # http://localhost:3000
+```
 
-### `npm start`
+Бэкенд по умолчанию ждём на `http://127.0.0.1:8000`. Если он на другом адресе, создай
+`studly/.env` со строкой `REACT_APP_API_URL=http://адрес:порт` и перезапусти `npm start`.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+Другие команды: `npm test` — тесты, `npm run build` — сборка в папку `build`.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Что где лежит
 
-### `npm test`
+```
+src/
+├── App.js                   маршруты и проверка ролей
+├── index.css                цвета, шрифты, кнопки, поля, модалки, анимации
+├── LoginPage, RegisterPage, StudentInvitationPage, ParentInvitationPage
+├── components/
+│   ├── LandingPage          главная для гостей
+│   ├── AppLayout            боковое меню, нижние вкладки на телефоне, свайпы, тема
+│   ├── AuthLayout           общий вид экранов входа и регистрации
+│   ├── Dashboard, SubjectsPage, SessionPlanningPage, PomodoroTimer, SessionCompletePage
+│   ├── StatisticsPage, AchievementsPage, AIPlannerPage, ProfilePage
+│   ├── ParentCabinetPage    кабинет родителя/учителя
+│   ├── parent/ParentCharts  графики для кабинета (столбики, тепловая карта, пончик…)
+│   ├── AdminPanelPage, NotFound404, ConfirmModal
+│   └── ui/                  Modal, уведомления, Spots, маскот Спот, следы лапок
+├── services/api.js          все запросы к бэкенду
+└── utils/chime.js           звук в конце интервала
+public/mascot/               картинки Спота (12 поз + аватар)
+src/assets/cursors/          курсор-лапка
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Мелочи
 
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- Тема светлая/тёмная, переключается в меню и запоминается.
+- Все анимации отключаются, если в системе включено «уменьшить движение».
+- Шрифты Unbounded и Nunito подключаются с Google Fonts в `public/index.html`.

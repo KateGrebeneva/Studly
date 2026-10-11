@@ -1,119 +1,18 @@
-.confirm-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1100;
-  animation: confirmFadeIn 0.2s ease;
-}
-
-@keyframes confirmFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.confirm-modal {
-  background: white;
-  border-radius: 16px;
-  padding: 2rem;
-  max-width: 400px;
-  width: 90%;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  animation: confirmSlideIn 0.3s ease;
-}
-
-@keyframes confirmSlideIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95) translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.confirm-modal-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.cm { width: min(100%, 420px); }
+.cm .modal-body { text-align: center; }
+.cm-form { width: min(100%, 500px); }
+.cm-form .modal-body { text-align: left; }
+.cm-icon {
+  width: 60px; height: 60px;
   margin: 0 auto 1rem;
+  display: grid; place-items: center;
+  border-radius: 20px;
+  animation: iconPop 0.55s 0.1s var(--ease) both;
 }
-
-.confirm-modal-icon.danger {
-  background: #fef2f2;
-  color: #dc2626;
-}
-
-.confirm-modal-icon.warning {
-  background: #fffbeb;
-  color: #d97706;
-}
-
-.confirm-modal-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0 0 0.5rem;
-  text-align: center;
-}
-
-.confirm-modal-message {
-  color: #6b7280;
-  font-size: 0.95rem;
-  margin: 0 0 1.5rem;
-  text-align: center;
-  line-height: 1.5;
-}
-
-.confirm-modal-actions {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: center;
-}
-
-.confirm-modal-btn {
-  padding: 0.625rem 1.25rem;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.confirm-modal-btn.cancel {
-  background: #f3f4f6;
-  color: #374151;
-  border: none;
-}
-
-.confirm-modal-btn.cancel:hover {
-  background: #e5e7eb;
-}
-
-.confirm-modal-btn.confirm {
-  border: none;
-}
-
-.confirm-modal-btn.confirm.danger {
-  background: #dc2626;
-  color: white;
-}
-
-.confirm-modal-btn.confirm.danger:hover {
-  background: #b91c1c;
-}
-
-.confirm-modal-btn.confirm.warning {
-  background: #7012CE;
-  color: white;
-}
-
-.confirm-modal-btn.confirm.warning:hover {
-  background: #5a0fa8;
-}
+.cm-form .cm-icon { margin-left: 0; }
+.cm-danger { background: var(--danger-soft); color: var(--danger); box-shadow: 0 10px 22px -12px var(--danger); }
+.cm-warning { background: var(--primary-soft); color: var(--primary); box-shadow: 0 10px 22px -12px var(--primary); }
+.cm-title { font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; letter-spacing: -0.015em; overflow-wrap: anywhere; }
+.cm-message { margin-top: 0.5rem; color: var(--muted); font-size: 0.95rem; overflow-wrap: anywhere; }
+.cm-body { margin-top: 1.1rem; }
+.cm .cm-actions .btn { flex: 1; }

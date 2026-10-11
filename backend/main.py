@@ -1,16 +1,21 @@
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
+from services.schema_service import ensure_schema
 from routers import auth, subjects, tasks, sessions, profile, achievements, goals, stats, activity_zones, ai_planner, parent, admin
 
-app = FastAPI(title="Studly API", version="1.0.0")
+logging.basicConfig(level=logging.INFO)
+
+app = FastAPI(title="Studly API", version="1.1.0")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
+    allow_headers=["*"],
     expose_headers=["*"],
 )
 
@@ -27,9 +32,15 @@ app.include_router(ai_planner.router)
 app.include_router(parent.router)
 app.include_router(admin.router)
 
+@app.on_event("startup")
+def _startup() -> None:
+    # досоздаём таблицы и достижения, если база старая
+    ensure_schema()
+
+
 @app.get("/")
 async def root():
-    return {"message": "Studly API is running", "version": "1.0.0"}
+    return {"message": "Studly API is running", "version": "1.1.0"}
 
 @app.get("/api/health")
 async def health():

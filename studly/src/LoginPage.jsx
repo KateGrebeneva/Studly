@@ -1,26 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, LogIn } from 'lucide-react';
+import { LogIn, Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { authAPI } from './services/api';
-import './LoginPage.css';
+import AuthLayout from './components/AuthLayout';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const [isLoaded, setIsLoaded] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    setIsLoaded(true);
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     if (!email || !password) {
-      setError('Введите email и пароль');
+      setError('Введи email и пароль');
       return;
     }
     setIsLoading(true);
@@ -37,74 +33,49 @@ const LoginPage = () => {
     }
   };
 
-  const goBack = () => {
-    setIsLoaded(false);
-    setTimeout(() => navigate(-1), 300);
-  };
-
   return (
-    <div className={`login-page ${isLoaded ? 'loaded' : ''}`}>
-      <button className="back-button" onClick={goBack}>
-        <ArrowLeft size={28} />
-      </button>
+    <AuthLayout
+      pose={error ? 'surprised' : 'wave'}
+      mood="idle"
+      bubble={error ? 'Хм, что-то не сходится…' : 'С возвращением! Я скучал.'}
+      aside={(
+        <>
+          <h2>Продолжим с того места, где ты остановился</h2>
+          <p>Твой план, серия дней и прогресс по предметам уже ждут.</p>
+        </>
+      )}
+    >
+      <h1 className="au-title">Вход в Studly</h1>
+      <p className="au-sub">Email и пароль, которые ты указал при регистрации</p>
 
-      <div className="login-container">
-        <div className="login-left">
-          <div className="left-content">
-            <img src="/log.png" alt="Studly" className="login-left-img" />
-            <h2>С возвращением!</h2>
-            <p>Войди в свой аккаунт и продолжай учёбу</p>
-          </div>
-        </div>
+      <form onSubmit={handleSubmit} className="au-form" noValidate>
+        <label className="field">
+          <span className="field-label">Email</span>
+          <span className="input-icon">
+            <Mail size={18} />
+            <input className={`input ${error ? 'is-error' : ''}`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" autoComplete="email" />
+          </span>
+        </label>
+        <label className="field">
+          <span className="field-label">Пароль</span>
+          <span className="input-icon au-pass">
+            <Lock size={18} />
+            <input className={`input ${error ? 'is-error' : ''}`} type={showPass ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Минимум 6 символов" autoComplete="current-password" />
+            <button type="button" className="btn btn-ghost btn-icon btn-sm au-pass-toggle" onClick={() => setShowPass((v) => !v)} aria-label={showPass ? 'Скрыть пароль' : 'Показать пароль'}>
+              {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
+          </span>
+        </label>
 
-        <div className="login-right">
-          <div className="form-wrapper">
-            <div className="form-header">
-              <img src="/logo-studly.png" alt="Studly" className="form-logo" />
-              <h1>Вход в аккаунт</h1>
-              <p className="form-subtitle">Email и пароль</p>
-            </div>
+        {error && <div className="alert alert-error" role="alert">{error}</div>}
 
-            <form onSubmit={handleSubmit} className="login-form">
-              <div className="input-group">
-                <label>Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  autoComplete="email"
-                />
-              </div>
+        <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={isLoading}>
+          <LogIn size={19} /> {isLoading ? 'Входим…' : 'Войти'}
+        </button>
+      </form>
 
-              <div className="input-group">
-                <label>Пароль</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                />
-              </div>
-
-              {error && <p className="error-text">{error}</p>}
-
-              <button type="submit" className="btn-login-submit" disabled={isLoading}>
-                <LogIn size={20} />
-                {isLoading ? 'Вход...' : 'Войти'}
-              </button>
-            </form>
-
-            <div className="form-footer">
-              <p>
-                Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <p className="au-foot">Нет аккаунта? <Link to="/register">Зарегистрироваться</Link></p>
+    </AuthLayout>
   );
 };
 

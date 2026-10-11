@@ -3,7 +3,10 @@ from typing import List
 from database.connection import get_db
 from models.task import TaskCreate, TaskUpdate, TaskResponse
 from auth import get_current_user
-import pymysql
+from services import achievements_service
+from services.stats_service import to_local_naive
+
+ALLOWED_PRIORITIES = {"low", "medium", "high"}
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 
@@ -11,10 +14,9 @@ router = APIRouter(prefix="/api/tasks", tags=["tasks"])
 async def get_tasks_by_subject(subject_id: int, current_user: dict = Depends(get_current_user)):
     with get_db() as conn:
         cursor = conn.cursor()
-        # Verify subject ownership
         cursor.execute("SELECT id FROM subjects WHERE id = %s AND user_id = %s", (subject_id, current_user["id"]))
         if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Subject not found")
+            raise HTTPException(status_code=404, detail="Предмет не найден")
         
         cursor.execute(
             """SELECT id, subject_id, title, description, priority, is_completed, due_date, created_at, updated_at 
@@ -22,7 +24,6 @@ async def get_tasks_by_subject(subject_id: int, current_user: dict = Depends(get
             (subject_id,)
         )
         tasks = cursor.fetchall()
-        # Convert datetime objects to strings
         for task in tasks:
             if task.get("created_at"):
                 task["created_at"] = task["created_at"].isoformat()
@@ -36,15 +37,18 @@ async def get_tasks_by_subject(subject_id: int, current_user: dict = Depends(get
 async def create_task(task: TaskCreate, current_user: dict = Depends(get_current_user)):
     with get_db() as conn:
         cursor = conn.cursor()
-        # Verify subject ownership
         cursor.execute("SELECT id FROM subjects WHERE id = %s AND user_id = %s", (task.subject_id, current_user["id"]))
         if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Subject not found")
+            raise HTTPException(status_code=404, detail="Предмет не найден")
         
+        if not task.title.strip():
+            raise HTTPException(status_code=400, detail="Название задачи не может быть пустым")
+        if task.priority not in ALLOWED_PRIORITIES:
+            raise HTTPException(status_code=400, detail="Недопустимый приоритет")
         cursor.execute(
             """INSERT INTO tasks (subject_id, title, description, priority, due_date) 
                VALUES (%s, %s, %s, %s, %s)""",
-            (task.subject_id, task.title, task.description, task.priority, task.due_date)
+            (task.subject_id, task.title.strip(), task.description, task.priority, to_local_naive(task.due_date))
         )
         task_id = cursor.lastrowid
         cursor.execute(
@@ -58,7 +62,6 @@ async def update_task(task_id: int, task_update: TaskUpdate, current_user: dict 
     with get_db() as conn:
         cursor = conn.cursor()
         
-        # Check ownership via subject
         cursor.execute(
             """SELECT t.id FROM tasks t 
                JOIN subjects s ON t.subject_id = s.id 
@@ -66,9 +69,8 @@ async def update_task(task_id: int, task_update: TaskUpdate, current_user: dict 
             (task_id, current_user["id"])
         )
         if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Task not found")
+            raise HTTPException(status_code=404, detail="Задача не найдена")
         
-        # Build update query
         updates = []
         values = []
         if task_update.title is not None:
@@ -78,6 +80,8 @@ async def update_task(task_id: int, task_update: TaskUpdate, current_user: dict 
             updates.append("description = %s")
             values.append(task_update.description)
         if task_update.priority is not None:
+            if task_update.priority not in ALLOWED_PRIORITIES:
+                raise HTTPException(status_code=400, detail="Недопустимый приоритет")
             updates.append("priority = %s")
             values.append(task_update.priority)
         if task_update.is_completed is not None:
@@ -85,16 +89,18 @@ async def update_task(task_id: int, task_update: TaskUpdate, current_user: dict 
             values.append(task_update.is_completed)
         if task_update.due_date is not None:
             updates.append("due_date = %s")
-            values.append(task_update.due_date)
+            values.append(to_local_naive(task_update.due_date))
         
         if not updates:
-            raise HTTPException(status_code=400, detail="No fields to update")
+            raise HTTPException(status_code=400, detail="Нет полей для обновления")
         
         values.append(task_id)
         cursor.execute(
             f"UPDATE tasks SET {', '.join(updates)} WHERE id = %s",
             values
         )
+        if task_update.is_completed:
+            achievements_service.refresh(cursor, current_user["id"])
         
         cursor.execute(
             "SELECT id, subject_id, title, description, priority, is_completed, due_date, created_at, updated_at FROM tasks WHERE id = %s",
@@ -113,5 +119,5 @@ async def delete_task(task_id: int, current_user: dict = Depends(get_current_use
             (task_id, current_user["id"])
         )
         if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Task not found")
+            raise HTTPException(status_code=404, detail="Задача не найдена")
 

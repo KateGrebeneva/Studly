@@ -1,16 +1,17 @@
--- Studly Database Schema
--- MySQL 8.0+
+-- Схема базы Studly (MySQL 8+)
+-- mysql -u root -p --default-character-set=utf8mb4 < database/schema.sql
 
+SET NAMES utf8mb4;
 CREATE DATABASE IF NOT EXISTS studly_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE studly_db;
 
--- Users table
+-- пользователи
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
-    role ENUM('student', 'parent', 'teacher') NOT NULL DEFAULT 'student',
+    role ENUM('student', 'parent', 'teacher', 'admin') NOT NULL DEFAULT 'student',
     avatar_url VARCHAR(500) NULL,
     theme VARCHAR(20) DEFAULT 'light',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -19,7 +20,7 @@ CREATE TABLE users (
     INDEX idx_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Subjects table
+-- предметы
 CREATE TABLE subjects (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -34,7 +35,7 @@ CREATE TABLE subjects (
     INDEX idx_category (category)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Tasks table
+-- задачи
 CREATE TABLE tasks (
     id INT AUTO_INCREMENT PRIMARY KEY,
     subject_id INT NOT NULL,
@@ -51,7 +52,7 @@ CREATE TABLE tasks (
     INDEX idx_due_date (due_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Study sessions table
+-- учебные сессии
 CREATE TABLE study_sessions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -76,22 +77,7 @@ CREATE TABLE study_sessions (
     INDEX idx_scheduled_at (scheduled_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Pomodoro intervals table (actual execution tracking)
-CREATE TABLE pomodoro_intervals (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    session_id INT NOT NULL,
-    index_in_session INT NOT NULL,
-    type ENUM('work', 'short_break', 'long_break') NOT NULL,
-    planned_minutes INT NOT NULL,
-    actual_minutes INT NULL,
-    started_at DATETIME NULL,
-    finished_at DATETIME NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (session_id) REFERENCES study_sessions(id) ON DELETE CASCADE,
-    INDEX idx_session_id (session_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Achievements table (master list)
+-- список достижений
 CREATE TABLE achievements (
     id INT AUTO_INCREMENT PRIMARY KEY,
     code VARCHAR(100) UNIQUE NOT NULL,
@@ -102,7 +88,7 @@ CREATE TABLE achievements (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- User achievements table (junction)
+-- достижения пользователя
 CREATE TABLE user_achievements (
     user_id INT NOT NULL,
     achievement_id INT NOT NULL,
@@ -115,7 +101,7 @@ CREATE TABLE user_achievements (
     INDEX idx_unlocked_at (unlocked_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Goals table
+-- цели
 CREATE TABLE goals (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -135,25 +121,7 @@ CREATE TABLE goals (
     INDEX idx_period (period_start, period_end)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Invitations table
-CREATE TABLE invitations (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    code VARCHAR(100) UNIQUE NOT NULL,
-    type ENUM('parent', 'student') NOT NULL,
-    email VARCHAR(255) NULL,
-    created_by_user_id INT NOT NULL,
-    target_user_id INT NULL,
-    status ENUM('pending', 'accepted', 'expired') DEFAULT 'pending',
-    expires_at DATETIME NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    accepted_at DATETIME NULL,
-    FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (target_user_id) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_code (code),
-    INDEX idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- Statistics/Study time tracking (optional, для быстрых запросов)
+-- журнал времени учёбы по дням
 CREATE TABLE study_time_logs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -170,7 +138,7 @@ CREATE TABLE study_time_logs (
     INDEX idx_date (date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Activity zones table (для AI планировщика - зоны продуктивности по времени)
+-- зоны продуктивности (для AI-планировщика)
 CREATE TABLE activity_zones (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -185,11 +153,36 @@ CREATE TABLE activity_zones (
     INDEX idx_time_slot (time_slot)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Insert default achievements
+-- связь родитель — ученик
+CREATE TABLE IF NOT EXISTS parent_children (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    parent_id INT NOT NULL,
+    child_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_parent_child (parent_id, child_id),
+    FOREIGN KEY (parent_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (child_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_parent (parent_id),
+    INDEX idx_child (child_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- коды приглашения: ученик создаёт в профиле, родитель вводит в кабинете
+CREATE TABLE IF NOT EXISTS user_invite_codes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    code VARCHAR(20) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_code (code),
+    INDEX idx_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- стандартные достижения
 INSERT INTO achievements (code, title, description, icon_name, color) VALUES
 ('first_session', 'Первая сессия', 'Заверши свою первую учебную сессию', 'Zap', '#7012CE'),
 ('week_streak_7', 'Неделя упорства', 'Учись 7 дней подряд', 'Flame', '#f97316'),
 ('master_time_100', 'Мастер времени', 'Изучи 100 часов', 'Clock', '#3b82f6'),
 ('task_master_50', 'Задачник', 'Выполни 50 задач', 'CheckCircle2', '#22c55e'),
-('erudite_10', 'Эрудит', 'Изучи 10 предметов', 'BookMarked', '#4ecdc4'),
+('erudite_10', 'Эрудит', 'Добавь 10 предметов', 'BookMarked', '#4ecdc4'),
 ('legend_30', 'Легенда', 'Учись 30 дней подряд', 'Trophy', '#ffd700');

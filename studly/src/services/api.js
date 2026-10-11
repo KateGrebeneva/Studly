@@ -1,21 +1,18 @@
-const API_BASE_URL = 'http://127.0.0.1:8000';
+// адрес бэкенда можно поменять через REACT_APP_API_URL в .env
+const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
 
-// Helper function to get auth token
 const getToken = () => {
   return localStorage.getItem('studly_token');
 };
 
-// Helper function to set auth token
 const setToken = (token) => {
   localStorage.setItem('studly_token', token);
 };
 
-// Helper function to remove auth token
 const removeToken = () => {
   localStorage.removeItem('studly_token');
 };
 
-// Generic fetch wrapper
 const apiRequest = async (endpoint, options = {}) => {
   const token = getToken();
   const headers = {
@@ -27,28 +24,39 @@ const apiRequest = async (endpoint, options = {}) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch (networkError) {
+    throw new Error('Сервер Studly недоступен. Проверь, что бэкенд запущен.');
+  }
 
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
+    const isAuthRequest = endpoint.startsWith('/api/auth/');
+    // разлогиниваем только на 401, 403 — это просто нет доступа
+    if (response.status === 401 && !isAuthRequest) {
       removeToken();
       localStorage.removeItem('studly_user');
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
     }
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+    const error = await response.json().catch(() => ({}));
+    let message = error.detail;
+    if (Array.isArray(message)) {
+      // ошибки валидации от FastAPI
+      message = message.map((e) => e.msg).filter(Boolean).join('; ');
+    }
+    throw new Error(message || `Ошибка сервера (${response.status})`);
   }
 
   if (response.status === 204) return {};
   return response.json();
 };
 
-// Auth API
 export const authAPI = {
   register: async (userData) => {
     const data = await apiRequest('/api/auth/register', {
@@ -91,26 +99,14 @@ export const authAPI = {
   },
 };
 
-// Subjects API
 export const subjectsAPI = {
   getAll: async () => {
     return apiRequest('/api/subjects');
   },
 
-  getById: async (id) => {
-    return apiRequest(`/api/subjects/${id}`);
-  },
-
   create: async (subjectData) => {
     return apiRequest('/api/subjects', {
       method: 'POST',
-      body: JSON.stringify(subjectData),
-    });
-  },
-
-  update: async (id, subjectData) => {
-    return apiRequest(`/api/subjects/${id}`, {
-      method: 'PUT',
       body: JSON.stringify(subjectData),
     });
   },
@@ -122,7 +118,6 @@ export const subjectsAPI = {
   },
 };
 
-// Tasks API
 export const tasksAPI = {
   getBySubject: async (subjectId) => {
     return apiRequest(`/api/tasks/subject/${subjectId}`);
@@ -149,7 +144,6 @@ export const tasksAPI = {
   },
 };
 
-// Sessions API
 export const sessionsAPI = {
   getAll: async (statusFilter = null) => {
     const query = statusFilter ? `?status_filter=${statusFilter}` : '';
@@ -181,32 +175,29 @@ export const sessionsAPI = {
   },
 };
 
-// Stats API
 export const statsAPI = {
   getDashboard: async () => apiRequest('/api/stats/dashboard'),
   getWeekly: async () => apiRequest('/api/stats/weekly'),
   getSubjects: async () => apiRequest('/api/stats/subjects'),
   getQuote: async () => apiRequest('/api/stats/quote'),
+  getDaily: async (days = 120) => apiRequest(`/api/stats/daily?days=${days}`),
 };
 
-// Achievements API
 export const achievementsAPI = {
   getAll: async () => apiRequest('/api/achievements'),
 };
 
-// Goals API
 export const goalsAPI = {
   getAll: async () => apiRequest('/api/goals'),
   create: async (goal) => apiRequest('/api/goals', { method: 'POST', body: JSON.stringify(goal) }),
   update: async (id, goal) => apiRequest(`/api/goals/${id}`, { method: 'PUT', body: JSON.stringify(goal) }),
+  delete: async (id) => apiRequest(`/api/goals/${id}`, { method: 'DELETE' }),
 };
 
-// Activity zones API (для AI планировщика)
 export const activityZonesAPI = {
   getAll: async () => apiRequest('/api/activity-zones'),
 };
 
-// AI API
 export const aiAPI = {
   generatePlan: async () => apiRequest('/api/ai/generate-plan', { method: 'POST', body: JSON.stringify({}) }),
   generateTest: async (goal, subjectName) =>
@@ -216,7 +207,6 @@ export const aiAPI = {
     }),
 };
 
-// Profile API
 export const profileAPI = {
   get: async () => apiRequest('/api/profile'),
   update: async (profileData) => apiRequest('/api/profile', { method: 'PUT', body: JSON.stringify(profileData) }),
@@ -224,20 +214,18 @@ export const profileAPI = {
   generateInviteCode: async () => apiRequest('/api/profile/invite-code', { method: 'POST' }),
 };
 
-// Parent API
 export const parentAPI = {
   getChildren: async () => apiRequest('/api/parent/children'),
   linkChild: async (code) => apiRequest('/api/parent/children/link', { method: 'POST', body: JSON.stringify({ code }) }),
   unlinkChild: async (childId) => apiRequest(`/api/parent/children/${childId}`, { method: 'DELETE' }),
-  getChildStats: async (childId) => apiRequest(`/api/parent/children/${childId}/stats`),
-  getChildWeekly: async (childId) => apiRequest(`/api/parent/children/${childId}/weekly`),
   getChildSessions: async (childId) => apiRequest(`/api/parent/children/${childId}/sessions`),
-  getChildSubjects: async (childId) => apiRequest(`/api/parent/children/${childId}/subjects`),
+  getChildOverview: async (childId, days = 30) => apiRequest(`/api/parent/children/${childId}/overview?days=${days}`),
+  getChildSubject: async (childId, subjectId, days = 30) =>
+    apiRequest(`/api/parent/children/${childId}/subjects/${subjectId}?days=${days}`),
   createSessionForChild: async (childId, sessionData) =>
     apiRequest(`/api/parent/children/${childId}/sessions`, { method: 'POST', body: JSON.stringify(sessionData) }),
 };
 
-// Admin API
 export const adminAPI = {
   getUsers: async (role, search) => {
     const params = new URLSearchParams();

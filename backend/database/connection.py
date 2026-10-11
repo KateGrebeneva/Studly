@@ -3,7 +3,6 @@ from contextlib import contextmanager
 from config import settings
 
 def get_db_connection():
-    """Create and return a database connection"""
     return pymysql.connect(
         host=settings.DB_HOST,
         user=settings.DB_USER,
@@ -16,7 +15,6 @@ def get_db_connection():
 
 @contextmanager
 def get_db():
-    """Context manager for database connections"""
     conn = get_db_connection()
     try:
         yield conn

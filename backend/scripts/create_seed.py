@@ -1,7 +1,4 @@
-"""
-Скрипт для заполнения БД тестовыми данными.
-Запуск: python scripts/create_seed.py
-"""
+"""Заполняет базу демо-данными. Запуск: python scripts/create_seed.py"""
 import sys
 import os
 import calendar
@@ -18,14 +15,14 @@ password_hash = pwd_context.hash("test123")
 with get_db() as conn:
     cursor = conn.cursor()
     
-    # Тестовый пользователь
+    # тестовый ученик
     cursor.execute("""
         INSERT INTO users (id, email, password_hash, name, role, theme)
         VALUES (1, 'test@studly.com', %s, 'Тестовый Пользователь', 'student', 'light')
         ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), name = VALUES(name)
     """, (password_hash,))
 
-    # Доп. пользователь для демонстрации графиков
+    # второй ученик, чтобы графики были не пустые
     cursor.execute("""
         INSERT INTO users (id, email, password_hash, name, role, theme)
         VALUES (2, 'ilya@studly.com', %s, 'Илья Малинин', 'student', 'light')
@@ -37,7 +34,7 @@ with get_db() as conn:
             theme = VALUES(theme)
     """, (password_hash,))
     
-    # Предметы
+    # предметы
     cursor.execute("""
         INSERT INTO subjects (id, user_id, name, color, category, time_studied_minutes)
         VALUES (1, 1, 'Математика', '#7012CE', 'main', 180),
@@ -47,7 +44,7 @@ with get_db() as conn:
         ON DUPLICATE KEY UPDATE time_studied_minutes = VALUES(time_studied_minutes)
     """)
 
-    # Предметы для Ильи
+    # предметы Ильи
     cursor.execute("""
         INSERT INTO subjects (id, user_id, name, color, category, time_studied_minutes)
         VALUES (10, 2, 'История', '#ff6b6b', 'important', 240),
@@ -56,7 +53,7 @@ with get_db() as conn:
         ON DUPLICATE KEY UPDATE time_studied_minutes = VALUES(time_studied_minutes)
     """)
     
-    # Задачи
+    # задачи
     cursor.execute("DELETE FROM tasks WHERE subject_id IN (1,2,3,4)")
     cursor.execute("""
         INSERT INTO tasks (subject_id, title, priority, is_completed)
@@ -69,7 +66,7 @@ with get_db() as conn:
                (4, 'Изучить органическую химию', 'high', 0)
     """)
     
-    # Сессии
+    # сессии
     cursor.execute("DELETE FROM study_sessions WHERE user_id = 1")
     cursor.execute("""
         INSERT INTO study_sessions (user_id, subject_id, goal, work_interval, short_break, long_break, intervals_count, duration_minutes, status)
@@ -78,21 +75,21 @@ with get_db() as conn:
                (1, 3, 'Повторить Вторую мировую', 25, 5, 15, 4, 100, 'planned')
     """)
 
-    # Сессии для Ильи: реальные completed/planned на этой неделе
+    # сессии Ильи на этой неделе
     cursor.execute("DELETE FROM study_sessions WHERE user_id = 2")
-    # Создаём 7 завершённых сессий за последние 7 дней (с completed_at), + 2 запланированных вперед
+    # 7 завершённых за последние дни + 2 запланированных
     for i, mins in enumerate([15, 90, 35, 120, 50, 10, 80]):
-        # date offset: 6..0 days ago
+        # 6..0 дней назад
         offset = 6 - i
         subj = [10, 10, 11, 10, 12, 11, 10][i]
         goal = [
             "Вторая мировая война",
             "Холодная война",
             "Интегралы — базовые",
-            "История: тест по теме мир после Второй Мировой Войны",
-            "Литература: анализ стихотворения Пушкина",
-            "Математика: повтор формул интегралов",
-            "История: конспект причины холодной войны",
+            "История: тест по теме",
+            "Литература: анализ текста",
+            "Математика: повтор формул",
+            "История: конспект",
         ][i]
         intervals = max(1, round(mins / 25))
         cursor.execute(
@@ -107,17 +104,17 @@ with get_db() as conn:
             (subj, goal, intervals, mins, offset, mins, offset),
         )
 
-    # Запланированные сессии (завтра/послезавтра)
+    # на завтра и послезавтра
     cursor.execute(
         """
         INSERT INTO study_sessions (user_id, subject_id, goal, work_interval, short_break, long_break, intervals_count, duration_minutes, status, scheduled_at)
         VALUES
-          (2, 10, 'История: повтор дат по холодной войне', 25, 5, 15, 3, 75, 'planned', CONCAT(DATE_ADD(CURDATE(), INTERVAL 1 DAY), ' 16:00:00')),
+          (2, 10, 'История: повтор дат', 25, 5, 15, 3, 75, 'planned', CONCAT(DATE_ADD(CURDATE(), INTERVAL 1 DAY), ' 16:00:00')),
           (2, 11, 'Математика: практика', 25, 5, 15, 2, 50, 'planned', CONCAT(DATE_ADD(CURDATE(), INTERVAL 2 DAY), ' 14:30:00'))
         """
     )
     
-    # Достижения пользователя
+    # достижения
     for ach_id, prog in [(1, 100), (2, 100), (3, 65), (4, 80), (5, 30), (6, 23)]:
         cursor.execute("""
             INSERT INTO user_achievements (user_id, achievement_id, progress, unlocked_at)
@@ -125,7 +122,7 @@ with get_db() as conn:
             ON DUPLICATE KEY UPDATE progress = VALUES(progress), unlocked_at = COALESCE(VALUES(unlocked_at), unlocked_at)
         """, (ach_id, prog, prog))
     
-    # Цели (даты считаем в Python, чтобы не ломаться на DATE_FORMAT/типах)
+    # цели (даты считаем в питоне, так проще)
     today = date.today()
     wd = today.weekday()  # Пн=0
     week_start = today - timedelta(days=wd)
@@ -142,7 +139,7 @@ with get_db() as conn:
                (1, 'Изучить 20 часов в месяц', 'monthly', 1200, 720, '#ff6b6b', 0, %s, %s)
     """, (today, today, week_start, week_end, month_start, month_end))
     
-    # Логи учёбы
+    # журнал учёбы
     subject_ids = [1, 2, 1, 3, 1, 2, 1]
     for i in range(7):
         cursor.execute("""
@@ -151,7 +148,7 @@ with get_db() as conn:
             ON DUPLICATE KEY UPDATE minutes_studied = VALUES(minutes_studied), tasks_completed = VALUES(tasks_completed)
         """, (subject_ids[i], 6 - i, 60 + (i * 15), 2 + i))
 
-    # Логи для Ильи: разные значения по дням, чтобы столбики были разные
+    # журнал Ильи, разные значения по дням
     cursor.execute("DELETE FROM study_time_logs WHERE user_id = 2 AND date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)")
     ilya_minutes = [15, 90, 35, 120, 50, 10, 80]
     ilya_tasks =   [0,  3,  1,   4,  2,  0,  2]
@@ -163,7 +160,7 @@ with get_db() as conn:
             ON DUPLICATE KEY UPDATE minutes_studied = VALUES(minutes_studied), tasks_completed = VALUES(tasks_completed)
         """, (ilya_subjects[i], 6 - i, ilya_minutes[i], ilya_tasks[i]))
     
-    # Зоны активности
+    # зоны активности
     zones = [
         ('09:00-11:00', 65), ('11:00-13:00', 72), ('13:00-15:00', 45),
         ('15:00-17:00', 95), ('17:00-19:00', 78), ('19:00-21:00', 60)
@@ -176,7 +173,7 @@ with get_db() as conn:
             VALUES (1, %s, %s, %s, %s, CURDATE())
         """, (slot, start.strip(), end.strip(), score))
 
-    # Тестовый родитель и админ (если таблицы существуют)
+    # тестовые родитель и админ
     try:
         cursor.execute("ALTER TABLE users MODIFY role ENUM('student', 'parent', 'teacher', 'admin') NOT NULL DEFAULT 'student'")
     except Exception:

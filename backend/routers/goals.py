@@ -7,9 +7,12 @@ from datetime import date, datetime
 
 router = APIRouter(prefix="/api/goals", tags=["goals"])
 
+ALLOWED_TYPES = {"daily", "weekly", "monthly"}
+
+
 class GoalCreate(BaseModel):
     title: str
-    type: str  # daily, weekly, monthly
+    type: str
     target_value: int
     color: str = "#7012CE"
 
@@ -29,7 +32,12 @@ async def get_goals(current_user: dict = Depends(get_current_user)):
             ORDER BY type, created_at DESC
         """, (current_user["id"],))
         rows = cursor.fetchall()
+        today = date.today()
         for r in rows:
+            # срок прошёл, а цель не выполнена
+            end = r.get("period_end")
+            r["is_expired"] = bool(end and not r.get("is_completed") and end < today)
+            r["is_completed"] = bool(r.get("is_completed"))
             if r.get("period_start"):
                 r["period_start"] = r["period_start"].isoformat()
             if r.get("period_end"):
@@ -40,6 +48,12 @@ async def get_goals(current_user: dict = Depends(get_current_user)):
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_goal(goal: GoalCreate, current_user: dict = Depends(get_current_user)):
+    if goal.type not in ALLOWED_TYPES:
+        raise HTTPException(status_code=400, detail="Период цели: daily, weekly или monthly")
+    if not goal.title.strip():
+        raise HTTPException(status_code=400, detail="Название цели не может быть пустым")
+    if goal.target_value < 1:
+        raise HTTPException(status_code=400, detail="Цель должна быть больше нуля")
     today = date.today()
     if goal.type == "daily":
         period_start = period_end = today
@@ -59,7 +73,7 @@ async def create_goal(goal: GoalCreate, current_user: dict = Depends(get_current
         cursor.execute("""
             INSERT INTO goals (user_id, title, type, target_value, current_value, color, period_start, period_end)
             VALUES (%s, %s, %s, %s, 0, %s, %s, %s)
-        """, (current_user["id"], goal.title, goal.type, goal.target_value, goal.color, period_start, period_end))
+        """, (current_user["id"], goal.title.strip(), goal.type, goal.target_value, goal.color, period_start, period_end))
         goal_id = cursor.lastrowid
         cursor.execute("SELECT * FROM goals WHERE id = %s", (goal_id,))
         row = cursor.fetchone()
@@ -74,20 +88,26 @@ async def update_goal(goal_id: int, goal_update: GoalUpdate, current_user: dict 
         cursor = conn.cursor()
         cursor.execute("SELECT id FROM goals WHERE id = %s AND user_id = %s", (goal_id, current_user["id"]))
         if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Goal not found")
+            raise HTTPException(status_code=404, detail="Цель не найдена")
 
         updates, vals = [], []
         if goal_update.title is not None:
             updates.append("title = %s")
             vals.append(goal_update.title)
         if goal_update.current_value is not None:
+            cursor.execute("SELECT target_value FROM goals WHERE id = %s", (goal_id,))
+            target = int(cursor.fetchone()["target_value"] or 1)
+            value = max(0, min(goal_update.current_value, target))
             updates.append("current_value = %s")
-            vals.append(goal_update.current_value)
+            vals.append(value)
+            if value >= target and goal_update.is_completed is None:
+                updates.append("is_completed = %s")
+                vals.append(True)
         if goal_update.is_completed is not None:
             updates.append("is_completed = %s")
             vals.append(goal_update.is_completed)
         if not updates:
-            raise HTTPException(status_code=400, detail="No fields to update")
+            raise HTTPException(status_code=400, detail="Нет полей для обновления")
         vals.append(goal_id)
         cursor.execute(f"UPDATE goals SET {', '.join(updates)} WHERE id = %s", vals)
         cursor.execute("SELECT * FROM goals WHERE id = %s", (goal_id,))
@@ -96,3 +116,12 @@ async def update_goal(goal_id: int, goal_update: GoalUpdate, current_user: dict 
             if row.get(k) and hasattr(row[k], 'isoformat'):
                 row[k] = row[k].isoformat()
         return row
+
+
+@router.delete("/{goal_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_goal(goal_id: int, current_user: dict = Depends(get_current_user)):
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM goals WHERE id = %s AND user_id = %s", (goal_id, current_user["id"]))
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Цель не найдена")

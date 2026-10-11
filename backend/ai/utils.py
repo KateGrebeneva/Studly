@@ -21,7 +21,6 @@ def safe_json_loads(text: str) -> Optional[Dict[str, Any]]:
 
 
 def normalize_questions(text_or_list: Any) -> List[str]:
-    """Accepts either list[str] or numbered text; returns clean list[str]."""
     if isinstance(text_or_list, list):
         out: List[str] = []
         for x in text_or_list:
@@ -36,7 +35,7 @@ def normalize_questions(text_or_list: Any) -> List[str]:
     if not text:
         return []
 
-    # Split by lines, remove numbering like "1.", "1)", "-" etc.
+    # убираем нумерацию "1.", "1)", "-"
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     cleaned: List[str] = []
     for ln in lines:

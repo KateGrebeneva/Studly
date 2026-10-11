@@ -1,229 +1,129 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Check, User, GraduationCap, Users, Mail, Lock } from 'lucide-react';
+import { Check, User, GraduationCap, Users, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, Timer, Sparkles, BarChart3 } from 'lucide-react';
 import { authAPI } from './services/api';
-import './RegisterPage.css';
+import AuthLayout from './components/AuthLayout';
+
+const ROLES = [
+  { value: 'student', label: 'Школьник или студент', icon: GraduationCap, hint: 'Сессии, задачи, статистика и AI-тесты' },
+  { value: 'adult', label: 'Учусь сам', icon: User, hint: 'Языки, курсы, самообразование' },
+  { value: 'parent', label: 'Родитель или учитель', icon: Users, hint: 'Слежу за прогрессом ученика' },
+];
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // Шаг формы
   const [step, setStep] = useState(1);
-
-  // Данные формы
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState(''); // 'parent', 'teacher', 'student', 'adult'
-
+  const [showPass, setShowPass] = useState(false);
+  const [role, setRole] = useState('');
   const [errors, setErrors] = useState({});
-
-  useEffect(() => {
-    setIsLoaded(true);
-  }, []);
+  const [isLoading, setIsLoading] = useState(false);
 
   const validateStep1 = () => {
-    const newErrors = {};
-    if (!email) newErrors.email = 'Введите email';
-    else if (!/^\S+@\S+\.\S+$/.test(email)) newErrors.email = 'Некорректный email';
-
-    if (!password) newErrors.password = 'Введите пароль';
-    else if (password.length < 6) newErrors.password = 'Пароль должен быть не менее 6 символов';
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const validateStep2 = () => {
-    if (!role) {
-      setErrors({ role: 'Выберите роль' });
-      return false;
-    }
-    setErrors({});
-    return true;
+    const e = {};
+    if (!email) e.email = 'Введи email';
+    else if (!/^\S+@\S+\.\S+$/.test(email)) e.email = 'Проверь email — похоже, в нём опечатка';
+    if (!password) e.password = 'Придумай пароль';
+    else if (password.length < 6) e.password = 'Пароль должен быть не короче 6 символов';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleNext = (e) => {
     e.preventDefault();
-    if (validateStep1()) {
-      setStep(2);
-    }
+    if (validateStep1()) setStep(2);
   };
 
-  const handleBack = () => {
-    setStep(1);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!role) { setErrors({ role: 'Выбери, кто ты — так Studly подберёт нужные разделы' }); return; }
     setErrors({});
-  };
-const [isLoading, setIsLoading] = useState(false);
-
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (validateStep2()) {
     setIsLoading(true);
     try {
-      // Маппинг ролей: adult -> student, остальные как есть
       const apiRole = role === 'adult' ? 'student' : role;
-      
-      await authAPI.register({
-        email,
-        password,
-        name: email.split('@')[0], // Временное имя из email
-        role: apiRole
-      });
-
-      // После регистрации автоматически логинимся
+      await authAPI.register({ email, password, name: email.split('@')[0], role: apiRole });
       const loginData = await authAPI.login(email, password);
       const userRole = loginData?.user?.role || apiRole;
       if (userRole === 'admin') navigate('/admin');
       else if (userRole === 'parent') navigate('/parent');
       else navigate('/dashboard');
     } catch (error) {
-      setErrors({ submit: error.message || 'Ошибка при регистрации' });
+      setErrors({ submit: error.message || 'Не удалось зарегистрироваться. Попробуй ещё раз.' });
     } finally {
       setIsLoading(false);
     }
-  }
-};
-  const goBackToPreviousPage = () => {
-    setIsLoaded(false);
-    setTimeout(() => navigate(-1), 400);
   };
 
-  const roles = [
-    { value: 'adult', label: 'Взрослый', icon: User, hint: 'Самостоятельный трекинг учебы' },
-    { value: 'student', label: 'Школьник', icon: GraduationCap, hint: 'Сессии, задачи и статистика' },
-    { value: 'parent', label: 'Родитель / Учитель', icon: Users, hint: 'Контроль и поддержка ученика' },
-  ];
-
   return (
-    <div className={`register-page ${isLoaded ? 'loaded' : ''}`}>
-      {/* Кнопка назад (на предыдущую страницу) */}
-      <button className="back-button" onClick={goBackToPreviousPage}>
-        <ArrowLeft size={28} />
-      </button>
+    <AuthLayout
+      pose={step === 1 ? 'stand' : 'thumbs'}
+      mood={step === 1 ? 'idle' : 'cheer'}
+      bubble={step === 1 ? 'Привет! Я Спот. Буду учиться вместе с тобой.' : 'Почти готово!'}
+      step={`Шаг ${step} из 2`}
+      aside={(
+        <>
+          <h2>Учись в своём ритме</h2>
+          <ul>
+            <li><Timer size={18} /> Pomodoro-сессии с понятной целью</li>
+            <li><Sparkles size={18} /> AI-план и тесты для закрепления</li>
+            <li><BarChart3 size={18} /> Статистика без лишних цифр</li>
+          </ul>
+        </>
+      )}
+    >
+      <h1 className="au-title">{step === 1 ? 'Создать аккаунт' : 'Кто ты в Studly?'}</h1>
+      <p className="au-sub">{step === 1 ? 'Займёт меньше минуты' : 'От этого зависит, какие разделы ты увидишь'}</p>
+      <div className="au-progress" aria-hidden="true"><i className="on" /><i className={step === 2 ? 'on' : ''} /></div>
 
-      <div className="register-container">
-        {/* Левая часть */}
-        <div className="register-left">
-          <div className="left-content">
-            <img src="/log.png" alt="Studly" className="mission-img" />
+      {step === 1 && (
+        <form onSubmit={handleNext} className="au-form" noValidate>
+          <label className="field">
+            <span className="field-label">Email</span>
+            <span className="input-icon">
+              <Mail size={18} />
+              <input className={`input ${errors.email ? 'is-error' : ''}`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" autoComplete="email" aria-invalid={!!errors.email} />
+            </span>
+            {errors.email && <span className="field-error">{errors.email}</span>}
+          </label>
+          <label className="field">
+            <span className="field-label">Пароль</span>
+            <span className="input-icon au-pass">
+              <Lock size={18} />
+              <input className={`input ${errors.password ? 'is-error' : ''}`} type={showPass ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Минимум 6 символов" autoComplete="new-password" aria-invalid={!!errors.password} />
+              <button type="button" className="btn btn-ghost btn-icon btn-sm au-pass-toggle" onClick={() => setShowPass((v) => !v)} aria-label={showPass ? 'Скрыть пароль' : 'Показать пароль'}>
+                {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            </span>
+            {errors.password && <span className="field-error">{errors.password}</span>}
+          </label>
+          <button type="submit" className="btn btn-primary btn-lg btn-block">Продолжить <ArrowRight size={18} /></button>
+        </form>
+      )}
+
+      {step === 2 && (
+        <form onSubmit={handleSubmit} className="au-form">
+          <div className="au-roles" role="radiogroup" aria-label="Роль">
+            {ROLES.map((r) => (
+              <label key={r.value} className={`au-role ${role === r.value ? 'is-active' : ''}`}>
+                <input type="radio" name="role" value={r.value} checked={role === r.value} onChange={(e) => setRole(e.target.value)} className="visually-hidden" />
+                <span className="au-role-icon"><r.icon size={21} /></span>
+                <span className="au-role-text"><b>{r.label}</b><small>{r.hint}</small></span>
+                <span className="au-role-check"><Check size={14} strokeWidth={3} /></span>
+              </label>
+            ))}
           </div>
-        </div>
-
-        {/* Правая часть — форма */}
-        <div className="register-right">
-          <div className="form-wrapper">
-            <div className="form-header">
-              <img src="/logo-studly.png" alt="Studly" className="mission-img" />
-              <h1>{step === 1 ? 'Создать аккаунт' : ''}</h1>
-              <p className="form-subtitle">
-                {step === 1
-                  ? 'Доступ к задачам, заметкам и проектам в любом месте'
-                  : 'Выберите подходящую категорию'}
-              </p>
-            </div>
-
-            {/* Индикатор шагов */}
-            <div className="steps-indicator">
-              <div className={`step-dot ${step >= 1 ? 'active' : ''}`}></div>
-              <div className={`step-line ${step === 2 ? 'active' : ''}`}></div>
-              <div className={`step-dot ${step === 2 ? 'active' : ''}`}></div>
-            </div>
-
-            {/* ШАГ 1 — Email и пароль */}
-            {step === 1 && (
-              <form onSubmit={handleNext} className="register-form">
-                <div className="input-group">
-                  <label>Введите email</label>
-                  <div className={`input-with-icon ${errors.email ? 'error' : ''}`}>
-                    <Mail size={18} />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@example.com"
-                      className={errors.email ? 'error' : ''}
-                    />
-                  </div>
-                  {errors.email && <span className="error-text">{errors.email}</span>}
-                </div>
-
-                <div className="input-group">
-                  <label>Введите пароль</label>
-                  <div className={`input-with-icon ${errors.password ? 'error' : ''}`}>
-                    <Lock size={18} />
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className={errors.password ? 'error' : ''}
-                    />
-                  </div>
-                  {errors.password && <span className="error-text">{errors.password}</span>}
-                </div>
-
-                <button type="submit" className="btn-register">
-                  Продолжить
-                </button>
-              </form>
-            )}
-
-{step === 2 && (
-  <form onSubmit={handleSubmit} className="register-form">
-    <div className="roles-list">
-      {roles.map((r) => (
-        <label
-          key={r.value}
-          className={`role-item ${role === r.value ? 'selected' : ''}`}
-        >
-          <input
-            type="radio"
-            name="role"
-            value={r.value}
-            checked={role === r.value}
-            onChange={(e) => setRole(e.target.value)}
-            className="hidden-radio"
-          />
-          <div className="role-item-content">
-            <div className="role-item-icon">
-              <r.icon size={20} />
-            </div>
-            <div className="checkbox">
-              {role === r.value && <Check size={20} />}
-            </div>
-            <div className="role-item-text">
-              <span className="role-item-label">{r.label}</span>
-              <span className="role-item-hint">{r.hint}</span>
-            </div>
+          {errors.role && <div className="alert alert-error" role="alert">{errors.role}</div>}
+          {errors.submit && <div className="alert alert-error" role="alert">{errors.submit}</div>}
+          <div className="au-actions">
+            <button type="button" className="btn btn-lg" onClick={() => { setStep(1); setErrors({}); }}><ArrowLeft size={18} /> Назад</button>
+            <button type="submit" className="btn btn-primary btn-lg" disabled={isLoading}>{isLoading ? 'Создаём…' : 'Создать аккаунт'}</button>
           </div>
-        </label>
-      ))}
-    </div>
+        </form>
+      )}
 
-    {errors.role && <span className="error-text center">{errors.role}</span>}
-    {errors.submit && <span className="error-text center">{errors.submit}</span>}
-
-    <div className="step2-buttons">
-      <button type="button" className="btn-back" onClick={handleBack}>
-        Назад
-      </button>
-      <button type="submit" className="btn-register" disabled={isLoading}>
-        {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
-      </button>
-    </div>
-  </form>
-)}
-            {/* Футер */}
-            <div className="form-footer">
-              <p>
-                Уже есть аккаунт? <Link to="/login">Войти</Link>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      <p className="au-foot">Уже есть аккаунт? <Link to="/login">Войти</Link></p>
+    </AuthLayout>
   );
 };
 

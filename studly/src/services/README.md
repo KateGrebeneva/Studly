@@ -1,72 +1,20 @@
-# API Service
+# api.js
 
-Этот файл содержит все функции для работы с бэкенд API.
+Все запросы к бэкенду. Токен после входа лежит в `localStorage` (`studly_token`)
+и сам подставляется в заголовок `Authorization`.
 
-## Использование
+```js
+import { authAPI, subjectsAPI, sessionsAPI, statsAPI } from './services/api';
 
-```javascript
-import { authAPI, subjectsAPI, tasksAPI, sessionsAPI, profileAPI } from './services/api';
-
-// Регистрация
-const user = await authAPI.register({
-  email: 'user@example.com',
-  password: 'password123',
-  name: 'Иван Иванов',
-  role: 'student'
-});
-
-// Логин
-const loginData = await authAPI.login('user@example.com', 'password123');
-// Токен автоматически сохраняется в localStorage
-
-// Получить текущего пользователя
-const currentUser = authAPI.getCurrentUser();
-
-// Работа с предметами
+await authAPI.login('test@studly.com', 'test123');
 const subjects = await subjectsAPI.getAll();
-const newSubject = await subjectsAPI.create({
-  name: 'Математика',
-  color: '#7012CE',
-  category: 'main'
-});
-
-// Работа с задачами
-const tasks = await tasksAPI.getBySubject(subjectId);
-const newTask = await tasksAPI.create({
-  subject_id: 1,
-  title: 'Изучить производные',
-  priority: 'high'
-});
-
-// Работа с сессиями
-const sessions = await sessionsAPI.getAll();
-const newSession = await sessionsAPI.create({
-  goal: 'Изучить производные',
-  subject_id: 1,
-  work_interval: 25,
-  intervals_count: 4
-});
-
-// Профиль
-const profile = await profileAPI.get();
-await profileAPI.update({ theme: 'dark' });
+await sessionsAPI.create({ goal: 'Производные', subject_id: 1, work_interval: 25, intervals_count: 4 });
+const today = await statsAPI.getDashboard();
 ```
 
-## Автоматическая авторизация
+Что есть: `authAPI`, `subjectsAPI`, `tasksAPI`, `sessionsAPI`, `statsAPI`, `achievementsAPI`,
+`goalsAPI`, `activityZonesAPI`, `aiAPI`, `profileAPI`, `parentAPI`, `adminAPI`.
 
-Все запросы (кроме `/api/auth/*`) автоматически включают JWT токен из localStorage.
-
-## Обработка ошибок
-
-```javascript
-try {
-  const data = await subjectsAPI.getAll();
-} catch (error) {
-  console.error('Ошибка:', error.message);
-  // Если 401 - токен истёк, нужно перелогиниться
-  if (error.message.includes('401')) {
-    authAPI.logout();
-    navigate('/register');
-  }
-}
-```
+Ошибки приходят как обычный `Error` с понятным текстом (его можно сразу показать пользователю).
+Если сервер ответил 401, пользователя разлогинивает и отправляет на вход.
+Если бэкенд не запущен, будет ошибка «Сервер Studly недоступен…».

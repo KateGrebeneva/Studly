@@ -8,11 +8,10 @@ from typing import Optional
 class ProviderConfig:
     gemini_api_key: Optional[str]
     openai_api_key: Optional[str]
-    prefer: str = "openai"  # "gemini" | "openai"
+    prefer: str = "openai"
 
 
 def pick_provider(cfg: ProviderConfig) -> str:
-    """Choose provider deterministically for stability."""
     prefer = (cfg.prefer or "gemini").lower()
     if prefer == "openai" and cfg.openai_api_key:
         return "openai"

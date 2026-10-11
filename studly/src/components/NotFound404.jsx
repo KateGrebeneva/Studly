@@ -1,55 +1,36 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { BookOpen, Home, ArrowLeft } from 'lucide-react';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Home } from 'lucide-react';
+import { Logo, Mascot } from './ui';
 import './NotFound404.css';
 
 const NotFound404 = () => {
   const navigate = useNavigate();
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    setIsLoaded(true);
-  }, []);
+  const home = (() => {
+    try {
+      if (!localStorage.getItem('studly_token')) return '/';
+      const role = JSON.parse(localStorage.getItem('studly_user') || '{}').role;
+      return role === 'parent' ? '/parent' : role === 'admin' ? '/admin' : '/dashboard';
+    } catch { return '/'; }
+  })();
 
   return (
-    <div className={`not-found-page ${isLoaded ? 'loaded' : ''}`}>
-      <div className="nf-bg-shapes">
-        <div className="nf-shape nf-shape-1"></div>
-        <div className="nf-shape nf-shape-2"></div>
-        <div className="nf-shape nf-shape-3"></div>
-      </div>
-
-      <div className="nf-content">
-        <div className="nf-visual">
-          <div className="nf-book-stack">
-            <div className="nf-book nf-book-1"></div>
-            <div className="nf-book nf-book-2"></div>
-            <div className="nf-book nf-book-3"></div>
-          </div>
-          <div className="nf-404">404</div>
+    <div className="nf">
+      <header className="nf-top">
+        <button type="button" className="nf-logo" onClick={() => navigate('/')} aria-label="Studly — на главную"><Logo size={30} /></button>
+      </header>
+      <main className="nf-main">
+        <div className="nf-stage">
+          <span className="nf-num" aria-hidden="true">404</span>
+          <Mascot variant="full" pose="surprised" mood="think" className="nf-mascot" cycle={['surprised', 'back', 'grumpy', 'shy']} />
         </div>
-
-        <h1 className="nf-title">Упс! Страница заблудилась</h1>
-        <p className="nf-subtitle">
-          Похоже, эта страница ушла на перемену и не вернулась. <br />
-          Давай вернёмся к учёбе!
-        </p>
-
+        <h1 className="nf-title">Кажется, мы свернули не туда</h1>
+        <p className="nf-sub">Такой страницы нет — возможно, ссылка устарела. Спот уже ищет дорогу обратно.</p>
         <div className="nf-actions">
-          <button className="nf-btn nf-btn-outline" onClick={() => navigate(-1)}>
-            <ArrowLeft size={20} />
-            Назад
-          </button>
-          <Link to="/" className="nf-btn nf-btn-outline">
-            <BookOpen size={20} />
-            На главную
-          </Link>
+          <button type="button" className="btn btn-lg" onClick={() => navigate(-1)}><ArrowLeft size={18} /> Назад</button>
+          <button type="button" className="btn btn-primary btn-lg" onClick={() => navigate(home)}><Home size={18} /> {home === '/' ? 'На главную' : 'К учёбе'}</button>
         </div>
-      </div>
-
-      <div className="nf-footer">
-        <img src="/logo-studly.png" alt="Studly" className="nf-logo" />
-      </div>
+      </main>
     </div>
   );
 };

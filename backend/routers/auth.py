@@ -3,29 +3,36 @@ from fastapi.security import OAuth2PasswordRequestForm
 from database.connection import get_db
 from models.user import UserCreate, UserResponse, Token
 from auth import verify_password, get_password_hash, create_access_token
-import pymysql
+
+# админа самому зарегистрировать нельзя, его назначают вручную
+PUBLIC_ROLES = {"student", "parent", "teacher"}
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate):
+    email = user_data.email.strip().lower()
+    role = user_data.role if user_data.role in PUBLIC_ROLES else None
+    if role is None:
+        raise HTTPException(status_code=400, detail="Недопустимая роль")
+    if len(user_data.password or "") < 6:
+        raise HTTPException(status_code=400, detail="Пароль должен быть не короче 6 символов")
+    name = (user_data.name or "").strip() or email.split("@")[0]
     with get_db() as conn:
         cursor = conn.cursor()
         
-        # Check if user exists
-        cursor.execute("SELECT id FROM users WHERE email = %s", (user_data.email,))
+        cursor.execute("SELECT id FROM users WHERE LOWER(email) = %s", (email,))
         if cursor.fetchone():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
+                detail="Этот email уже зарегистрирован"
             )
         
-        # Create user
         password_hash = get_password_hash(user_data.password)
         cursor.execute(
             """INSERT INTO users (email, password_hash, name, role) 
                VALUES (%s, %s, %s, %s)""",
-            (user_data.email, password_hash, user_data.name, user_data.role)
+            (email, password_hash, name, role)
         )
         user_id = cursor.lastrowid
         
@@ -44,15 +51,15 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id, email, password_hash, name, role, avatar_url, theme, created_at FROM users WHERE email = %s",
-            (form_data.username,)
+            "SELECT id, email, password_hash, name, role, avatar_url, theme, created_at FROM users WHERE LOWER(email) = %s",
+            (form_data.username.strip().lower(),)
         )
         user = cursor.fetchone()
         
         if not user or not verify_password(form_data.password, user["password_hash"]):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email or password",
+                detail="Неверный email или пароль",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         

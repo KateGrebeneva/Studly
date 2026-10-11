@@ -1,0 +1,129 @@
+.mascot {
+  position: relative;
+  margin: 0;
+  display: inline-block;
+  line-height: 0;
+  flex-shrink: 0;
+}
+.mascot-frame {
+  display: block;
+  position: relative;
+  transform-origin: 50% 90%;
+}
+/* по пояс: рамка обрезает только снизу, сверху запас под подъём */
+.mascot--bust .mascot-frame { --head: 18%; }
+.mascot-clip {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: calc(-1 * var(--head));
+  overflow: hidden;
+  pointer-events: none;
+}
+.mascot--bust .mascot-clip .mascot-img {
+  position: absolute;
+  left: 0;
+  top: calc(100% * 18 / 118);
+  width: 100%;
+  transform-origin: 50% 70%;
+  transition: transform 0.45s var(--ease);
+}
+.mascot--bust.is-interactive .mascot-clip { pointer-events: auto; }
+.mascot-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 18px 24px rgba(60, 30, 140, 0.22));
+  animation: poseIn 0.55s var(--ease) both;
+}
+.mascot--bust .mascot-img { filter: none; }
+.mascot--head .mascot-img,
+.mascot--avatar .mascot-img { filter: drop-shadow(0 8px 14px rgba(60, 30, 140, 0.18)); }
+.mascot.is-flipped .mascot-img { transform: scaleX(-1); }
+.mascot--bust.is-flipped .mascot-clip .mascot-img { transform: scaleX(-1); }
+
+/* настроения анимируем на рамке, а не на картинке */
+.mascot--idle .mascot-frame { animation: mascotFloat 5s ease-in-out infinite; }
+.mascot--cheer .mascot-frame { animation: mascotHop 1.8s var(--ease) infinite; }
+.mascot--think .mascot-frame { animation: mascotTilt 4.5s ease-in-out infinite; }
+.mascot--curious .mascot-frame { animation: mascotCurious 3.8s ease-in-out infinite; }
+.mascot--sleep .mascot-frame { animation: mascotBreath 4s ease-in-out infinite; }
+.mascot--focus .mascot-frame { animation: mascotFloat 6s ease-in-out infinite; }
+.mascot--bust .mascot-frame { animation-name: none; }
+.mascot--bust.mascot--cheer .mascot-img,
+.mascot--bust.mascot--idle .mascot-img { animation: poseIn 0.55s var(--ease) both, bustBob 4.5s 0.6s ease-in-out infinite; }
+
+.mascot.is-interactive { cursor: inherit; }
+.mascot.is-interactive .mascot-frame { transition: transform 0.3s var(--ease); }
+.mascot.is-interactive:hover .mascot-frame { transform: translateY(-6px) rotate(-2deg); animation-play-state: paused; }
+.mascot.is-interactive:active .mascot-frame { transform: translateY(2px) scale(0.98); }
+/* по пояс рамка стоит на месте, поднимается сам Спот */
+.mascot--bust.is-interactive:hover .mascot-frame,
+.mascot--bust.is-interactive:active .mascot-frame { transform: none; }
+.mascot--bust.is-interactive:hover .mascot-clip .mascot-img { transform: translateY(-8%) rotate(-1.5deg); }
+.mascot--bust.is-interactive:active .mascot-clip .mascot-img { transform: translateY(-3%) scale(0.98); }
+.mascot--bust.is-flipped.is-interactive:hover .mascot-clip .mascot-img { transform: translateY(-8%) rotate(1.5deg) scaleX(-1); }
+.mascot.is-interactive:focus-visible { outline: 3px solid var(--primary); outline-offset: 6px; border-radius: 24px; }
+
+/* реквизит */
+.mascot-props { position: absolute; pointer-events: none; z-index: 1; }
+.mascot-confetti { inset: -14% -12% auto; width: 124%; height: auto; }
+.mascot-confetti > * { animation: confetti 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.mascot-confetti > *:nth-child(2n) { animation-delay: 0.4s; }
+.mascot-confetti > *:nth-child(3n) { animation-delay: 0.9s; }
+
+.mascot-thought { top: -12%; right: -18%; width: 60%; fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; }
+.mascot-thought > * { animation: thought 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.mascot-thought > *:nth-child(2) { animation-delay: 0.25s; }
+.mascot-thought > *:nth-child(3) { animation-delay: 0.5s; }
+
+.mascot-z { top: 2%; right: 4%; display: flex; gap: 2px; font-family: var(--font-display); font-weight: 700; color: var(--violet-400); line-height: 1; }
+.mascot-z span { display: inline-block; animation: zz 2.8s ease-in-out infinite; font-size: 0.9rem; }
+.mascot-z span:nth-child(2) { animation-delay: 0.5s; font-size: 1.1rem; }
+.mascot-z span:nth-child(3) { animation-delay: 1s; font-size: 1.35rem; }
+
+
+/* облачко */
+.mascot-bubble {
+  position: absolute;
+  z-index: 2;
+  top: 4%;
+  max-width: 220px;
+  width: max-content;
+  padding: 0.65rem 0.9rem;
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  box-shadow: var(--sh-2);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  font-weight: 500;
+  animation: popIn 0.5s 0.3s var(--ease) both;
+}
+.mascot-bubble--left { right: 88%; border-bottom-right-radius: 6px; }
+.mascot-bubble--right { left: 88%; border-bottom-left-radius: 6px; }
+.mascot-bubble--top { bottom: 100%; top: auto; left: 50%; transform: translateX(-50%); }
+
+@keyframes poseIn { from { opacity: 0; scale: 0.9; translate: 0 10px; } to { opacity: 1; scale: 1; translate: 0 0; } }
+@keyframes bustBob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
+@keyframes mascotFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes mascotHop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  20% { transform: translateY(0) scale(1.03, 0.97); }
+  45% { transform: translateY(-14px) scale(0.98, 1.02); }
+  70% { transform: translateY(0) scale(1.02, 0.98); }
+}
+@keyframes mascotTilt { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-4deg); } }
+@keyframes mascotCurious { 0%, 60%, 100% { transform: rotate(0deg); } 70%, 88% { transform: rotate(-7deg); } }
+@keyframes mascotBreath { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.015, 0.99); } }
+@keyframes confetti { 0%, 100% { transform: translateY(0) rotate(0deg); opacity: 1; } 50% { transform: translateY(-6px) rotate(25deg); opacity: 0.7; } }
+@keyframes thought { 0%, 100% { opacity: 0.4; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1); } }
+@keyframes zz { 0% { opacity: 0; transform: translate(0, 6px); } 40% { opacity: 1; } 100% { opacity: 0; transform: translate(8px, -14px); } }
+
+@media (max-width: 640px) {
+  .mascot-bubble { max-width: 170px; font-size: 0.8rem; }
+}

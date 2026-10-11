@@ -1,46 +1,30 @@
 flowchart TB
-    subgraph Client["Клиент (Frontend)"]
+    subgraph Client["Клиент (React SPA)"]
         Browser[Браузер]
-        React[React SPA]
-        Components[Компоненты: Dashboard, Sessions, Pomodoro, Statistics, AI Planner, Profile, Parent, Admin]
-        Browser --> React
-        React --> Components
+        Pages[Страницы: лендинг, главная, предметы, сессии, таймер, статистика, цели, AI, профиль, родитель, админ]
+        Api[services/api.js]
+        Browser --> Pages --> Api
     end
 
-    subgraph Server["Серверная часть (Backend)"]
-        API[FastAPI]
-        Auth[auth]
-        Subjects[subjects]
-        Tasks[tasks]
-        Sessions[sessions]
-        Profile[profile]
-        Stats[stats]
-        AI[ai_planner]
-        Parent[parent]
-        Admin[admin]
-        API --> Auth
-        API --> Subjects
-        API --> Tasks
-        API --> Sessions
-        API --> Profile
-        API --> Stats
-        API --> AI
-        API --> Parent
-        API --> Admin
+    subgraph Server["Сервер (FastAPI)"]
+        Routers[routers: auth, subjects, tasks, sessions, stats, goals, achievements, activity_zones, ai_planner, profile, parent, admin]
+        Services[services: stats, achievements, analytics, schema]
+        AI[ai: OpenAI / Gemini / план без нейросети]
+        Routers --> Services
+        Routers --> AI
     end
 
-    subgraph Data["База данных и хранилища"]
-        MySQL[(MySQL)]
+    subgraph Data["Данные"]
+        MySQL[(MySQL studly_db)]
     end
 
-    subgraph External["Внешние API"]
-        OpenAI[OpenAI API]
-        Gemini[Google Gemini API]
+    subgraph External["Внешние API (по желанию)"]
+        OpenAI[OpenAI]
+        Gemini[Google Gemini]
     end
 
-    Client -->|HTTPS / REST / JWT| Server
-    Server -->|SQL / PyMySQL| MySQL
-    AI -->|HTTP| OpenAI
-    AI -->|HTTP| Gemini
-
-    direction TB
+    Api -->|REST + JWT| Routers
+    Services -->|PyMySQL| MySQL
+    Routers -->|PyMySQL| MySQL
+    AI --> OpenAI
+    AI --> Gemini

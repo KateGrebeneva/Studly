@@ -1,313 +1,214 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { User, Settings, Bell, Lock, Palette, LogOut, Edit2, Save, X, Home, BookOpen, Calendar, TrendingUp, Sparkles, Users, Shield, Copy } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { LogOut, Pencil, Save, X, Copy, RefreshCw, Sun, Moon, Volume2, KeyRound, Check } from 'lucide-react';
 import { profileAPI, authAPI } from '../services/api';
+import { isSoundEnabled, setSoundEnabled, playChime } from '../utils/chime';
+import AppLayout, { applyTheme, getStoredTheme } from './AppLayout';
+import { PageHeader, Mascot, Spots, useToast } from './ui';
 import './ProfilePage.css';
+
+const ROLE_LABELS = { student: 'Ученик', teacher: 'Учитель', parent: 'Родитель', admin: 'Администратор' };
 
 const ProfilePage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const [isLoaded, setIsLoaded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [profileData, setProfileData] = useState({
-    name: '',
-    email: '',
-    role: 'student',
-    avatar: null
-  });
-
-  const [theme, setTheme] = useState(() => {
-    if (typeof window === 'undefined') return 'light';
-    return localStorage.getItem('studly-theme') || 'light';
-  });
+  const [profileData, setProfileData] = useState({ name: '', email: '', role: 'student' });
+  const [draftName, setDraftName] = useState('');
+  const [theme, setTheme] = useState(getStoredTheme);
+  const [sound, setSound] = useState(isSoundEnabled);
   const [inviteCode, setInviteCode] = useState('');
-
-  useEffect(() => {
-    setIsLoaded(true);
-  }, []);
+  const [copied, setCopied] = useState(false);
+  const [toast, showToast] = useToast();
 
   useEffect(() => {
     const load = async () => {
       try {
         const user = authAPI.getCurrentUser();
-        if (user) setProfileData({ name: user.name || '', email: user.email || '', role: user.role || 'student', avatar: null });
+        if (user) setProfileData({ name: user.name || '', email: user.email || '', role: user.role || 'student' });
         const p = await profileAPI.get();
-        if (p) setProfileData(prev => ({ ...prev, name: p.name || prev.name, email: p.email || prev.email, role: p.role || prev.role }));
-        if (p?.theme) setTheme(p.theme);
+        if (p) setProfileData((prev) => ({ ...prev, name: p.name || prev.name, email: p.email || prev.email, role: p.role || prev.role }));
+        if (p?.theme) {
+          setTheme(p.theme);
+          applyTheme(p.theme);
+          window.dispatchEvent(new CustomEvent('studly-theme', { detail: p.theme }));
+        }
         if ((p || user)?.role === 'student') {
           try {
             const codeRes = await profileAPI.getInviteCode();
             setInviteCode(codeRes?.code || '');
-          } catch (_) {}
+          } catch { /* кода ещё нет */ }
         }
       } catch (e) {
         console.error(e);
-      } finally {
-        setLoading(false);
       }
     };
     load();
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('studly-theme', theme);
-  }, [theme]);
+    const onTheme = (e) => setTheme(e.detail);
+    window.addEventListener('studly-theme', onTheme);
+    return () => window.removeEventListener('studly-theme', onTheme);
+  }, []);
 
-  const isActive = (path) => location.pathname === path;
+  const startEdit = () => { setDraftName(profileData.name); setIsEditing(true); };
 
-  const handleSave = async () => {
+  const handleSave = async (e) => {
+    e?.preventDefault();
+    if (!draftName.trim()) return;
     try {
-      const updated = await profileAPI.update({ name: profileData.name, theme });
-      if (updated) {
-        const userStr = localStorage.getItem('studly_user');
-        if (userStr) {
-          const user = JSON.parse(userStr);
-          user.name = updated.name ?? user.name;
-          user.theme = updated.theme ?? user.theme;
-          localStorage.setItem('studly_user', JSON.stringify(user));
-        }
+      const updated = await profileAPI.update({ name: draftName.trim(), theme });
+      const name = updated?.name ?? draftName.trim();
+      setProfileData((prev) => ({ ...prev, name }));
+      const userStr = localStorage.getItem('studly_user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        user.name = name;
+        user.theme = updated?.theme ?? user.theme;
+        localStorage.setItem('studly_user', JSON.stringify(user));
       }
       setIsEditing(false);
-    } catch (e) {
-      console.error(e);
+      showToast('Профиль сохранён');
+    } catch (err) {
+      showToast(err.message || 'Не удалось сохранить профиль', 'error');
     }
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
   };
 
   const handleThemeChange = async (newTheme) => {
     setTheme(newTheme);
+    applyTheme(newTheme);
+    window.dispatchEvent(new CustomEvent('studly-theme', { detail: newTheme }));
     try {
       const updated = await profileAPI.update({ theme: newTheme });
-      if (updated) {
-        const userStr = localStorage.getItem('studly_user');
-        if (userStr) {
-          const user = JSON.parse(userStr);
-          user.theme = updated.theme ?? newTheme;
-          localStorage.setItem('studly_user', JSON.stringify(user));
-        }
+      const userStr = localStorage.getItem('studly_user');
+      if (userStr && updated) {
+        const user = JSON.parse(userStr);
+        user.theme = updated.theme ?? newTheme;
+        localStorage.setItem('studly_user', JSON.stringify(user));
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  const handleLogout = () => {
-    authAPI.logout();
-    navigate('/login');
+  const toggleSound = () => {
+    const next = !sound;
+    setSound(next);
+    setSoundEnabled(next);
+    if (next) playChime();
   };
+
+  const handleLogout = () => { authAPI.logout(); navigate('/login'); };
 
   const handleGenerateCode = async () => {
     try {
       const res = await profileAPI.generateInviteCode();
       setInviteCode(res?.code || '');
-    } catch (e) {
-      console.error(e);
+      showToast('Новый код создан. Старый больше не работает.');
+    } catch (err) {
+      showToast(err.message || 'Не удалось создать код', 'error');
     }
   };
 
-  const copyCode = () => {
-    if (inviteCode) {
-      navigator.clipboard.writeText(inviteCode);
+  const copyCode = async () => {
+    if (!inviteCode) return;
+    try {
+      await navigator.clipboard.writeText(inviteCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      showToast('Не удалось скопировать — выдели код вручную', 'error');
     }
   };
 
   const isStudent = profileData.role === 'student';
-  const isParent = profileData.role === 'parent';
-  const isAdmin = profileData.role === 'admin';
+  const initial = (profileData.name || profileData.email || '?').charAt(0).toUpperCase();
 
   return (
-    <div className={`profile-page ${isLoaded ? 'loaded' : ''}`}>
-      <aside className="dashboard-sidebar">
-        <div className="sidebar-header">
-          <img src="/logo-studly.png" alt="Studly" className="sidebar-logo" />
-        </div>
-        <nav className="sidebar-nav">
-          {isStudent || profileData.role === 'teacher' ? (
-            <>
-              <button className={`nav-item ${isActive('/dashboard') ? 'active' : ''}`} onClick={() => navigate('/dashboard')}>
-                <Home size={20} /><span>Главная</span>
-              </button>
-              <button className={`nav-item ${isActive('/subjects') ? 'active' : ''}`} onClick={() => navigate('/subjects')}>
-                <BookOpen size={20} /><span>Предметы</span>
-              </button>
-              <button className={`nav-item ${isActive('/sessions') ? 'active' : ''}`} onClick={() => navigate('/sessions')}>
-                <Calendar size={20} /><span>Сессии</span>
-              </button>
-              <button className={`nav-item ${isActive('/statistics') ? 'active' : ''}`} onClick={() => navigate('/statistics')}>
-                <TrendingUp size={20} /><span>Статистика</span>
-              </button>
-              <button className={`nav-item ${isActive('/ai-planner') ? 'active' : ''}`} onClick={() => navigate('/ai-planner')}>
-                <Sparkles size={20} /><span>AI Планировщик</span>
-              </button>
-            </>
-          ) : isParent ? (
-            <button className={`nav-item ${isActive('/parent') ? 'active' : ''}`} onClick={() => navigate('/parent')}>
-              <Users size={20} /><span>Мои дети</span>
-            </button>
-          ) : isAdmin ? (
-            <button className={`nav-item ${isActive('/admin') ? 'active' : ''}`} onClick={() => navigate('/admin')}>
-              <Shield size={20} /><span>Панель админа</span>
-            </button>
-          ) : null}
-          <button className={`nav-item ${isActive('/profile') ? 'active' : ''}`} onClick={() => navigate('/profile')}>
-            <User size={20} /><span>Профиль</span>
-          </button>
-        </nav>
-      </aside>
+    <AppLayout>
+      <PageHeader title="Профиль" subtitle="Личные данные и настройки приложения" />
 
-      <main className="profile-main">
-       
-
-        <div className="profile-content">
-          <div className="profile-card">
-            <div className="profile-avatar-section">
-              <div className="avatar-container">
-                <div className="avatar-placeholder">
-                  {(profileData.name || '?').charAt(0).toUpperCase()}
+      <div className="pf-layout">
+        <section className="pf-card panel-violet rise">
+          <Spots set="b" opacity={0.1} />
+          <div className="pf-id">
+            <span className="pf-avatar" aria-hidden="true">{initial}</span>
+            {isEditing ? (
+              <form className="pf-edit" onSubmit={handleSave}>
+                <label className="visually-hidden" htmlFor="pf-name">Имя</label>
+                <input id="pf-name" className="input" value={draftName} onChange={(e) => setDraftName(e.target.value)} autoFocus placeholder="Как тебя зовут?" />
+                <div className="pf-edit-actions">
+                  <button type="submit" className="btn btn-ink btn-sm" disabled={!draftName.trim()}><Save size={16} /> Сохранить</button>
+                  <button type="button" className="btn btn-on-panel btn-sm" onClick={() => setIsEditing(false)}><X size={16} /> Отмена</button>
                 </div>
-                {isEditing && (
-                  <button className="avatar-edit-btn">
-                    <Edit2 size={18} />
-                  </button>
-                )}
+              </form>
+            ) : (
+              <div className="pf-meta">
+                <h2 className="pf-name">{profileData.name || 'Без имени'}</h2>
+                <p className="pf-email">{profileData.email}</p>
+                <span className="pf-role">{ROLE_LABELS[profileData.role] || profileData.role}</span>
               </div>
-              <div className="profile-info">
-                {isEditing ? (
-                  <>
-                    <input
-                      type="text"
-                      value={profileData.name}
-                      onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                      className="profile-input"
-                    />
-                    <input
-                      type="email"
-                      value={profileData.email}
-                      onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                      className="profile-input"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <h2 className="profile-name">{profileData.name}</h2>
-                    <p className="profile-email">{profileData.email}</p>
-                    <span className="profile-role">{profileData.role}</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="profile-actions">
-              {isEditing ? (
-                <>
-                  <button className="btn-save" onClick={handleSave}>
-                    <Save size={18} />
-                    Сохранить
-                  </button>
-                  <button className="btn-cancel" onClick={handleCancel}>
-                    <X size={18} />
-                    Отмена
-                  </button>
-                </>
-              ) : (
-                <button className="btn-edit" onClick={() => setIsEditing(true)}>
-                  <Edit2 size={18} />
-                  Редактировать
-                </button>
-              )}
-            </div>
+            )}
           </div>
+          {!isEditing && (
+            <button type="button" className="btn btn-on-panel btn-sm pf-edit-btn" onClick={startEdit}><Pencil size={15} /> Изменить имя</button>
+          )}
+          <Mascot variant="bust" pose="wave" mood="idle" className="pf-mascot" cycle={['wave', 'thumbs', 'playful', 'jump']} />
+        </section>
 
+        <div className="pf-col">
           {isStudent && (
-            <div className="invite-code-section">
-              <h2 className="settings-title">Код для родителей</h2>
-              <p className="invite-code-desc">Дай этот код родителю, чтобы он мог видеть твои результаты и планировать сессии</p>
-              <div className="invite-code-block">
-                <code className="invite-code">{inviteCode || '—'}</code>
-                <div className="invite-code-actions">
-                  <button type="button" className="btn-copy" onClick={copyCode} disabled={!inviteCode}>
-                    <Copy size={16} /> Копировать
-                  </button>
-                  <button type="button" className="btn-regenerate" onClick={handleGenerateCode}>
-                    Сгенерировать новый
-                  </button>
+            <section className="card card-pad pf-invite rise rise-1">
+              <div className="pf-invite-head">
+                <span className="pf-icon"><KeyRound size={20} /></span>
+                <div>
+                  <h2 className="t-h2">Код для родителя или учителя</h2>
+                  <p className="t-muted t-small">Взрослый вводит его в своём кабинете и видит твои результаты, а также может назначать сессии.</p>
                 </div>
               </div>
-            </div>
+              <div className="pf-code">
+                <code className="t-num" aria-label="Код приглашения">{inviteCode || '— — — —'}</code>
+                <div className="pf-code-actions">
+                  <button type="button" className="btn btn-soft btn-sm" onClick={copyCode} disabled={!inviteCode}>
+                    {copied ? <><Check size={16} /> Скопировано</> : <><Copy size={16} /> Копировать</>}
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={handleGenerateCode}><RefreshCw size={16} /> {inviteCode ? 'Новый код' : 'Создать код'}</button>
+                </div>
+              </div>
+            </section>
           )}
 
-          <div className="settings-section">
-            <h2 className="settings-title">Настройки</h2>
-            
-            <div className="settings-list">
-              <div className="setting-item">
-                <div className="setting-icon">
-                  <Bell size={20} />
-                </div>
-                <div className="setting-content">
-                  <h3 className="setting-name">Уведомления</h3>
-                  <p className="setting-desc">Управление уведомлениями</p>
-                </div>
-                <button className="setting-toggle">
-                  <div className="toggle-switch active"></div>
-                </button>
+          <section className="card pf-settings rise rise-2">
+            <h2 className="t-h2 pf-settings-title">Настройки</h2>
+            <div className="pf-row">
+              <span className="pf-icon">{theme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}</span>
+              <div className="pf-row-text">
+                <h3>Тема оформления</h3>
+                <p>Тёмная бережёт глаза вечером</p>
               </div>
-
-              <div className="setting-item">
-                <div className="setting-icon">
-                  <Lock size={20} />
-                </div>
-                <div className="setting-content">
-                  <h3 className="setting-name">Безопасность</h3>
-                  <p className="setting-desc">Смена пароля</p>
-                </div>
-                <button className="setting-arrow">→</button>
-              </div>
-
-              <div className="setting-item">
-                <div className="setting-icon">
-                  <Palette size={20} />
-                </div>
-                <div className="setting-content">
-                  <h3 className="setting-name">Тема</h3>
-                  <p className="setting-desc">Внешний вид приложения</p>
-                </div>
-                <div className="theme-toggle-group">
-                  <button
-                    type="button"
-                    className={`theme-toggle-btn ${theme === 'light' ? 'active' : ''}`}
-                    onClick={() => handleThemeChange('light')}
-                  >
-                    Светлая
-                  </button>
-                  <button
-                    type="button"
-                    className={`theme-toggle-btn ${theme === 'dark' ? 'active' : ''}`}
-                    onClick={() => handleThemeChange('dark')}
-                  >
-                    Тёмная
-                  </button>
-                </div>
+              <div className="segmented" role="radiogroup" aria-label="Тема">
+                <button type="button" role="radio" aria-checked={theme === 'light'} className={theme === 'light' ? 'is-active' : ''} onClick={() => handleThemeChange('light')}>Светлая</button>
+                <button type="button" role="radio" aria-checked={theme === 'dark'} className={theme === 'dark' ? 'is-active' : ''} onClick={() => handleThemeChange('dark')}>Тёмная</button>
               </div>
             </div>
-          </div>
+            <div className="pf-row">
+              <span className="pf-icon"><Volume2 size={20} /></span>
+              <div className="pf-row-text">
+                <h3>Звуковой сигнал</h3>
+                <p>Мягкий звук в конце каждого интервала таймера</p>
+              </div>
+              <button type="button" role="switch" aria-checked={sound} className={`pf-switch ${sound ? 'is-on' : ''}`} onClick={toggleSound} aria-label="Звуковой сигнал">
+                <span />
+              </button>
+            </div>
+          </section>
 
-          <div className="logout-section">
-            <button className="btn-logout" onClick={handleLogout}>
-              <LogOut size={20} />
-              Выйти из аккаунта
-            </button>
-          </div>
+          <button type="button" className="btn btn-danger-soft pf-logout rise rise-3" onClick={handleLogout}><LogOut size={18} /> Выйти из аккаунта</button>
         </div>
-      </main>
-    </div>
+      </div>
+      {toast}
+    </AppLayout>
   );
 };
 
 export default ProfilePage;
-

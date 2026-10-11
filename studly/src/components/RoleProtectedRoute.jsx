@@ -1,9 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 
-/**
- * Маршрут с проверкой роли — редирект, если роль пользователя не в списке разрешённых
- */
+// если роль не подходит — отправляем на свою главную
 const RoleProtectedRoute = ({ children, allowedRoles }) => {
   const userStr = typeof window !== 'undefined' ? localStorage.getItem('studly_user') : null;
   if (!userStr) return <Navigate to="/login" replace />;

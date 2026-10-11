@@ -1,4 +1,3 @@
-"""Admin API - users management, statistics"""
 from fastapi import APIRouter, Depends, Query, HTTPException
 from database.connection import get_db
 from auth_deps import require_admin
@@ -20,26 +19,20 @@ async def get_all_users(
     role: str = Query(None),
     search: str = Query(None)
 ):
-    """Get all users with optional filters"""
+    where, params = [], []
+    if role:
+        where.append("role = %s")
+        params.append(role)
+    if search:
+        where.append("(name LIKE %s OR email LIKE %s)")
+        params += [f"%{search}%", f"%{search}%"]
+    sql = "SELECT id, email, name, role, theme, created_at FROM users"
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    sql += " ORDER BY created_at DESC"
     with get_db() as conn:
         cursor = conn.cursor()
-        if role:
-            cursor.execute(
-                """SELECT id, email, name, role, theme, created_at FROM users 
-                   WHERE role = %s ORDER BY created_at DESC""",
-                (role,)
-            )
-        elif search:
-            search_term = f"%{search}%"
-            cursor.execute(
-                """SELECT id, email, name, role, theme, created_at FROM users 
-                   WHERE name LIKE %s OR email LIKE %s ORDER BY created_at DESC""",
-                (search_term, search_term)
-            )
-        else:
-            cursor.execute(
-                "SELECT id, email, name, role, theme, created_at FROM users ORDER BY created_at DESC"
-            )
+        cursor.execute(sql, params)
         rows = cursor.fetchall()
         result = []
         for r in rows:
@@ -51,7 +44,6 @@ async def get_all_users(
 
 @router.get("/stats")
 async def get_admin_stats(current_user: dict = Depends(require_admin)):
-    """Admin dashboard statistics"""
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) as cnt FROM users")
@@ -64,15 +56,44 @@ async def get_admin_stats(current_user: dict = Depends(require_admin)):
         completed_sessions = cursor.fetchone()["cnt"]
         cursor.execute("SELECT COALESCE(SUM(duration_minutes), 0) as total FROM study_sessions WHERE status = 'completed'")
         total_minutes = cursor.fetchone()["total"] or 0
-        today = date.today().isoformat()
-        cursor.execute("SELECT COUNT(*) as cnt FROM study_sessions WHERE status = 'completed' AND DATE(completed_at) = %s", (today,))
+        today = date.today()
+        cursor.execute(
+            "SELECT COUNT(*) as cnt FROM study_sessions WHERE status = 'completed' AND DATE(completed_at) = %s",
+            (today,),
+        )
         today_sessions = cursor.fetchone()["cnt"]
-        cursor.execute("SELECT COUNT(*) as cnt FROM study_time_logs WHERE date = %s", (today,))
+        # активные = сегодня завершили сессию или есть запись в журнале
+        cursor.execute(
+            """SELECT COUNT(DISTINCT user_id) AS cnt FROM (
+                   SELECT user_id FROM study_sessions WHERE status = 'completed' AND DATE(completed_at) = %s
+                   UNION SELECT user_id FROM study_time_logs WHERE date = %s AND minutes_studied > 0
+               ) t""",
+            (today, today),
+        )
         today_active = cursor.fetchone()["cnt"]
-        week_ago = (date.today() - timedelta(days=7)).isoformat()
-        cursor.execute("SELECT date, COUNT(DISTINCT user_id) as active, SUM(minutes_studied) as minutes FROM study_time_logs WHERE date >= %s GROUP BY date ORDER BY date", (week_ago,))
-        weekly = cursor.fetchall()
-        weekly_data = [{"date": str(r["date"]), "activeUsers": r["active"], "minutes": r["minutes"] or 0} for r in weekly]
+        week_start = today - timedelta(days=6)
+        cursor.execute(
+            """SELECT DATE(completed_at) AS d, COUNT(DISTINCT user_id) AS active, SUM(duration_minutes) AS minutes
+               FROM study_sessions WHERE status = 'completed' AND DATE(completed_at) >= %s
+               GROUP BY DATE(completed_at)""",
+            (week_start,),
+        )
+        by_day = {str(r["d"]): r for r in cursor.fetchall()}
+        cursor.execute(
+            """SELECT date AS d, COUNT(DISTINCT user_id) AS active, SUM(minutes_studied) AS minutes
+               FROM study_time_logs WHERE date >= %s GROUP BY date""",
+            (week_start,),
+        )
+        logs = {str(r["d"]): r for r in cursor.fetchall()}
+        weekly_data = []
+        for i in range(7):
+            d = (week_start + timedelta(days=i)).isoformat()
+            a, b = by_day.get(d) or {}, logs.get(d) or {}
+            weekly_data.append({
+                "date": d,
+                "activeUsers": max(int(a.get("active") or 0), int(b.get("active") or 0)),
+                "minutes": max(int(a.get("minutes") or 0), int(b.get("minutes") or 0)),
+            })
         return {
             "totalUsers": total_users,
             "students": students,
@@ -111,6 +132,8 @@ async def update_user(user_id: int, payload: UpdateUserRequest, current_user: di
 
     if not updates:
         raise HTTPException(status_code=400, detail="Нет полей для обновления")
+    if user_id == current_user["id"] and payload.role is not None and payload.role != "admin":
+        raise HTTPException(status_code=400, detail="Нельзя снять с себя роль администратора")
 
     with get_db() as conn:
         cursor = conn.cursor()
@@ -121,7 +144,7 @@ async def update_user(user_id: int, payload: UpdateUserRequest, current_user: di
             values.append(user_id)
             cursor.execute(f"UPDATE users SET {', '.join(updates)} WHERE id = %s", values)
         except Exception:
-            # Likely duplicate email or other constraint
+            # скорее всего такой email уже есть
             raise HTTPException(status_code=400, detail="Не удалось обновить пользователя")
         cursor.execute("SELECT id, email, name, role, theme, created_at FROM users WHERE id = %s", (user_id,))
         row = cursor.fetchone()

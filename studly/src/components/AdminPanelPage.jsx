@@ -1,60 +1,59 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Shield, Users, GraduationCap, UserPlus, CheckCircle2, Clock, Activity, User, LogOut, Search, Pencil } from 'lucide-react';
-import { adminAPI, authAPI } from '../services/api';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Users, GraduationCap, UserPlus, CheckCircle2, Clock, Activity, Search, Pencil } from 'lucide-react';
+import { adminAPI } from '../services/api';
 import ConfirmModal from './ConfirmModal';
+import AppLayout from './AppLayout';
+import { PageHeader, EmptyState } from './ui';
 import './AdminPanelPage.css';
 
+const ROLE_LABELS = { student: 'Ученик', parent: 'Родитель', teacher: 'Учитель', admin: 'Админ' };
+
 const AdminPanelPage = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [roleFilter, setRoleFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [usersLoading, setUsersLoading] = useState(true);
   const [editUser, setEditUser] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', email: '', role: 'student', theme: 'light' });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
+    const loadData = async () => {
+      try {
+        setStats(await adminAPI.getStats());
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
     loadData();
   }, []);
 
-  useEffect(() => {
-    loadUsers();
-  }, [roleFilter, searchTerm]);
-
-  const loadData = async () => {
-    try {
-      const s = await adminAPI.getStats();
-      setStats(s);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
+    setUsersLoading(true);
     try {
       const list = await adminAPI.getUsers(roleFilter || undefined, searchTerm || undefined);
       setUsers(list || []);
     } catch (e) {
       console.error(e);
+    } finally {
+      setUsersLoading(false);
     }
-  };
+  }, [roleFilter, searchTerm]);
+
+  useEffect(() => {
+    const t = setTimeout(loadUsers, 250);
+    return () => clearTimeout(t);
+  }, [loadUsers]);
 
   const openEdit = (u) => {
     setSaveError('');
     setEditUser(u);
-    setEditForm({
-      name: u?.name || '',
-      email: u?.email || '',
-      role: u?.role || 'student',
-      theme: u?.theme || 'light',
-    });
+    setEditForm({ name: u?.name || '', email: u?.email || '', role: u?.role || 'student', theme: u?.theme || 'light' });
   };
 
   const handleSaveUser = async () => {
@@ -62,12 +61,7 @@ const AdminPanelPage = () => {
     setSaving(true);
     setSaveError('');
     try {
-      const updated = await adminAPI.updateUser(editUser.id, {
-        name: editForm.name,
-        email: editForm.email,
-        role: editForm.role,
-        theme: editForm.theme,
-      });
+      const updated = await adminAPI.updateUser(editUser.id, { ...editForm });
       setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
       setEditUser(null);
     } catch (e) {
@@ -77,212 +71,127 @@ const AdminPanelPage = () => {
     }
   };
 
-  const handleLogout = () => {
-    authAPI.logout();
-    navigate('/login');
-  };
-
-  const roleLabels = { student: 'Студент', parent: 'Родитель', teacher: 'Учитель', admin: 'Админ' };
+  const activity = stats?.weeklyActivity || [];
+  const maxAct = Math.max(1, ...activity.map((d) => d.minutes || 0));
+  const KPIS = stats ? [
+    { icon: Users, label: 'Всего пользователей', value: stats.totalUsers, c: 'violet' },
+    { icon: GraduationCap, label: 'Учеников', value: stats.students, c: 'denim' },
+    { icon: UserPlus, label: 'Родителей', value: stats.parents, c: 'mint' },
+    { icon: CheckCircle2, label: 'Завершённых сессий', value: stats.completedSessions, c: 'sun' },
+    { icon: Clock, label: 'Часов учёбы', value: Math.floor((stats.totalMinutes || 0) / 60), c: 'violet' },
+    { icon: Activity, label: 'Активны сегодня', value: stats.todayActiveUsers, c: 'rose' },
+  ] : [];
 
   return (
-    <div className="admin-panel-page">
-      <aside className="dashboard-sidebar">
-        <div className="sidebar-header">
-          <img src="/logo-studly.png" alt="Studly" className="sidebar-logo" />
+    <AppLayout>
+      <PageHeader title="Панель администратора" subtitle="Пользователи и активность платформы" />
+
+      {loading ? (
+        <div className="ad-kpis">{[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="skeleton" style={{ height: 110 }} />)}</div>
+      ) : stats && (
+        <section className="ad-top">
+          <div className="ad-kpis">
+            {KPIS.map(({ icon: Icon, label, value, c }, i) => (
+              <div key={label} className={`ad-kpi rise rise-${i + 1}`}>
+                <Icon size={19} className={`c-${c}`} />
+                <b className="t-num">{value ?? '—'}</b>
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+          {activity.length > 0 && (
+            <div className="card card-pad ad-chart rise rise-3">
+              <h2 className="t-h2">Минуты учёбы за неделю</h2>
+              <div className="ad-bars">
+                {activity.map((d, i) => (
+                  <div key={i} className="ad-bar" title={`${d.date}: ${d.minutes || 0} мин`}>
+                    <span className="ad-bar-val t-num">{d.minutes || 0}</span>
+                    <span className="ad-bar-track"><span style={{ height: `${Math.max(3, ((d.minutes || 0) / maxAct) * 100)}%` }} /></span>
+                    <span className="ad-bar-day t-num">{d.date ? new Date(d.date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'numeric' }) : ''}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      <section className="card ad-users rise rise-4">
+        <div className="ad-users-head">
+          <h2 className="t-h2">Пользователи</h2>
+          <div className="ad-filters">
+            <div className="input-icon ad-search">
+              <Search size={18} />
+              <input className="input" type="search" placeholder="Имя или email" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} aria-label="Поиск пользователей" />
+            </div>
+            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="select ad-role" aria-label="Фильтр по роли">
+              <option value="">Все роли</option>
+              {Object.entries(ROLE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </div>
         </div>
-        <nav className="sidebar-nav">
-          <button className={`nav-item active`} onClick={() => navigate('/admin')}>
-            <Shield size={20} />
-            <span>Панель админа</span>
-          </button>
-          <button className={`nav-item`} onClick={() => navigate('/profile')}>
-            <User size={20} />
-            <span>Профиль</span>
-          </button>
-          <button className="nav-item" onClick={handleLogout}>
-            <LogOut size={20} />
-            <span>Выйти</span>
-          </button>
-        </nav>
-      </aside>
-
-      <main className="admin-main">
-        <header className="admin-header">
-          <h1>Панель администратора</h1>
-        </header>
-
-        {loading ? (
-          <p>Загрузка...</p>
+        {!usersLoading && users.length === 0 ? (
+          <div style={{ padding: '0 1.4rem 1.4rem' }}>
+            <EmptyState mood="think" title="Никого не нашли" text="Попробуй изменить запрос или сбросить фильтр роли." />
+          </div>
         ) : (
-          <>
-            {stats && (
-              <section className="admin-stats">
-                <h2>Статистика</h2>
-                <div className="stats-cards stagger-children">
-                  <div className="admin-stat-card">
-                    <Users size={20} className="stat-icon stat-icon-sm" />
-                    <div>
-                      <div className="stat-value">{stats.totalUsers}</div>
-                      <div className="stat-label">Всего пользователей</div>
-                    </div>
-                  </div>
-                  <div className="admin-stat-card">
-                    <GraduationCap size={20} className="stat-icon stat-icon-sm" />
-                    <div>
-                      <div className="stat-value">{stats.students}</div>
-                      <div className="stat-label">Студентов</div>
-                    </div>
-                  </div>
-                  <div className="admin-stat-card">
-                    <UserPlus size={20} className="stat-icon stat-icon-sm" />
-                    <div>
-                      <div className="stat-value">{stats.parents}</div>
-                      <div className="stat-label">Родителей</div>
-                    </div>
-                  </div>
-                  <div className="admin-stat-card">
-                    <CheckCircle2 size={20} className="stat-icon stat-icon-sm" />
-                    <div>
-                      <div className="stat-value">{stats.completedSessions}</div>
-                      <div className="stat-label">Завершённых сессий</div>
-                    </div>
-                  </div>
-                  <div className="admin-stat-card">
-                    <Clock size={20} className="stat-icon stat-icon-sm" />
-                    <div>
-                      <div className="stat-value">{Math.floor(stats.totalMinutes / 60)}ч</div>
-                      <div className="stat-label">Всего времени учёбы</div>
-                    </div>
-                  </div>
-                  <div className="admin-stat-card">
-                    <Activity size={20} className="stat-icon stat-icon-sm" />
-                    <div>
-                      <div className="stat-value">{stats.todayActiveUsers}</div>
-                      <div className="stat-label">Активных сегодня</div>
-                    </div>
-                  </div>
-                </div>
-
-                {stats.weeklyActivity && stats.weeklyActivity.length > 0 && (
-                  <div className="chart-section">
-                    <h3>Активность за неделю</h3>
-                    <div className="chart-bars">
-                      {stats.weeklyActivity.map((d, i) => (
-                        <div key={i} className="chart-bar-item">
-                          <div
-                            className="chart-bar-fill"
-                            style={{ height: `${Math.min(100, (d.minutes || 0) / 10)}%` }}
-                          />
-                          <span className="chart-label">{d.date?.slice(5) || ''}</span>
-                          <span className="chart-value">{d.minutes || 0} мин</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </section>
-            )}
-
-            <section className="admin-users">
-              <h2>Пользователи</h2>
-              <div className="users-filters">
-                <div className="search-box">
-                  <Search size={18} />
-                  <input
-                    type="text"
-                    placeholder="Поиск по имени или email..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="studly-select role-filter"
-                >
-                  <option value="">Все роли</option>
-                  <option value="student">Студент</option>
-                  <option value="parent">Родитель</option>
-                  <option value="teacher">Учитель</option>
-                  <option value="admin">Админ</option>
-                </select>
-              </div>
-              <div className="users-table-wrap">
-                <table className="users-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Имя</th>
-                      <th>Email</th>
-                      <th>Роль</th>
-                      <th>Регистрация</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((u) => (
-                      <tr key={u.id}>
-                        <td>{u.id}</td>
-                        <td>{u.name}</td>
-                        <td>{u.email}</td>
-                        <td><span className={`role-badge role-${u.role}`}>{roleLabels[u.role] || u.role}</span></td>
-                        <td>{u.created_at ? new Date(u.created_at).toLocaleDateString('ru-RU') : '-'}</td>
-                        <td className="users-actions">
-                          <button className="btn-user-edit" onClick={() => openEdit(u)} title="Редактировать">
-                            <Pencil size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </>
+          <div className="ad-table-wrap">
+            <table className="ad-table">
+              <thead>
+                <tr><th>Пользователь</th><th>Роль</th><th>Регистрация</th><th><span className="visually-hidden">Действия</span></th></tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id}>
+                    <td>
+                      <div className="ad-user">
+                        <span className="ad-ava">{(u.name || u.email || '?').charAt(0).toUpperCase()}</span>
+                        <span className="ad-user-meta"><b>{u.name}</b><small>{u.email} · #{u.id}</small></span>
+                      </div>
+                    </td>
+                    <td><span className={`badge ad-role-${u.role}`}>{ROLE_LABELS[u.role] || u.role}</span></td>
+                    <td className="t-muted t-num">{u.created_at ? new Date(u.created_at).toLocaleDateString('ru-RU') : '—'}</td>
+                    <td className="ad-actions">
+                      <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={() => openEdit(u)} aria-label={`Редактировать ${u.name}`}><Pencil size={16} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </main>
+      </section>
 
       <ConfirmModal
         isOpen={!!editUser}
         title="Редактировать пользователя"
-        message={
-          editUser ? (
-            <div className="admin-edit-form">
-              <div className="admin-edit-row">
-                <label>Имя</label>
-                <input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-              </div>
-              <div className="admin-edit-row">
-                <label>Email</label>
-                <input value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
-              </div>
-              <div className="admin-edit-row">
-                <label>Роль</label>
-                <select className="studly-select" value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}>
-                  <option value="student">Студент</option>
-                  <option value="parent">Родитель</option>
-                  <option value="teacher">Учитель</option>
-                  <option value="admin">Админ</option>
+        message={editUser ? (
+          <div className="ad-edit">
+            <label className="field"><span className="field-label">Имя</span><input className="input" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></label>
+            <label className="field"><span className="field-label">Email</span><input className="input" type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} /></label>
+            <div className="ad-edit-row">
+              <label className="field"><span className="field-label">Роль</span>
+                <select className="select" value={editForm.role} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}>
+                  {Object.entries(ROLE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                 </select>
-              </div>
-              <div className="admin-edit-row">
-                <label>Тема</label>
-                <select className="studly-select" value={editForm.theme} onChange={(e) => setEditForm({ ...editForm, theme: e.target.value })}>
+              </label>
+              <label className="field"><span className="field-label">Тема</span>
+                <select className="select" value={editForm.theme} onChange={(e) => setEditForm({ ...editForm, theme: e.target.value })}>
                   <option value="light">Светлая</option>
                   <option value="dark">Тёмная</option>
                 </select>
-              </div>
-              {saveError && <div className="admin-edit-error">{saveError}</div>}
+              </label>
             </div>
-          ) : ''
-        }
-        confirmText={saving ? 'Сохраняю...' : 'Сохранить'}
+            {saveError && <div className="alert alert-error">{saveError}</div>}
+          </div>
+        ) : ''}
+        confirmText={saving ? 'Сохраняю…' : 'Сохранить'}
         cancelText="Отмена"
         onConfirm={handleSaveUser}
         onCancel={() => setEditUser(null)}
         variant="warning"
       />
-    </div>
+    </AppLayout>
   );
 };
 
